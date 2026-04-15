@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chzzk Downloader 개인정보 처리방침</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+    :root {
+      --bg: #1a1b1e;
+      --bg2: #26272b;
+      --bg3: #2f3136;
+      --acc: #00ffa3;
+      --acc-d: rgba(0, 255, 163, .15);
+      --tx: #e4e5e7;
+      --tx2: #8b8d91;
+      --brd: rgba(255, 255, 255, .06);
+      --err: #ff4d6a;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--tx);
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+      padding: 40px 20px;
+    }
+
+    .header {
+      margin-bottom: 40px;
+      text-align: center;
+      border-bottom: 1px solid var(--brd);
+      padding-bottom: 30px;
+    }
+
+    .logo-container {
+      width: 64px;
+      height: 64px;
+      background: var(--bg2);
+      border: 1.5px solid var(--acc);
+      border-radius: 16px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(0, 255, 163, 0.1);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .logo-container:hover {
+      transform: scale(1.08);
+      background: var(--bg3);
+    }
+
+    .logo-container svg {
+      width: 32px;
+      height: 32px;
+      fill: var(--acc);
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0 0 10px 0;
+      color: var(--tx);
+    }
+
+    .last-updated {
+      font-size: 14px;
+      color: var(--tx2);
+    }
+
+    /* Layout Grid */
+    .layout-grid {
+      display: grid;
+      grid-template-columns: 1.8fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 800px) {
+      .layout-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .content-box {
+      background: var(--bg2);
+      border: 1px solid var(--brd);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .2);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .content-box:hover {
+      border-color: var(--acc-d);
+      transform: translateY(-2px);
+    }
+
+    /* Sidebar Sticky */
+    .sidebar {
+      position: sticky;
+      top: 24px;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--acc);
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h2::before {
+      content: '';
+      display: block;
+      width: 4px;
+      height: 16px;
+      background: var(--acc);
+      border-radius: 2px;
+    }
+
+    p {
+      margin: 0 0 16px 0;
+      font-size: 15px;
+      color: var(--tx);
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    ul.default-list {
+      margin: 0 0 16px 0;
+      padding-left: 20px;
+    }
+
+    ul.default-list li {
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: var(--tx);
+      line-height: 1.6;
+    }
+
+    ul.default-list li:last-child {
+      margin-bottom: 0;
+    }
+
+    .highlight {
+      color: var(--acc);
+      font-weight: 600;
+      background: var(--acc-d);
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    /* History List */
+    .history-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .history-item {
+      position: relative;
+      padding-left: 18px;
+      padding-bottom: 16px;
+      border-left: 2px solid var(--brd);
+      transition: border-color 0.2s;
+    }
+
+    .history-item:hover {
+      border-left-color: var(--acc);
+    }
+
+    .history-item:last-child {
+      padding-bottom: 0;
+      border-left-color: transparent;
+    }
+
+    .history-item:last-child:hover {
+      border-left-color: transparent;
+    }
+
+    .history-item::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bg2);
+      border: 2px solid var(--brd);
+      transition: all 0.2s;
+    }
+
+    .history-item:hover::before {
+      border-color: var(--acc);
+      background: var(--acc);
+    }
+
+    .history-item .version {
+      font-weight: 700;
+      color: var(--acc);
+      font-size: 14px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .history-item .desc {
+      font-size: 13px;
+      color: var(--tx2);
+      line-height: 1.5;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--brd);
+      font-size: 13px;
+      color: var(--tx2);
+      line-height: 1.6;
+    }
+
+    a {
+      color: var(--acc);
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+
+    a:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-container">
+        <!-- 다운로드 아이콘 -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+        </svg>
+      </div>
+      <h1>Chzzk Downloader 개인정보 처리방침</h1>
+      <div class="last-updated">최종 업데이트: 2026년 4월 16일</div>
+    </div>
+
+    <div class="layout-grid">
+      <!-- 메인 콘텐츠 영역 -->
+      <div class="main-content">
+        <div class="content-box">
+          <h2>1. 개인정보 수집 및 이용</h2>
+          <p><strong>Chzzk Downloader</strong>는 사용자 개인을 식별할 수 있는 <span class="highlight">어떠한 개인정보도 수집, 저장, 전송하지
+              않습니다.</span></p>
+          <p>본 확장 프로그램은 오직 네이버 치지직(Chzzk)에서 제공되는 동영상(VOD) 및 클립의 다운로드 기능을 제공하는 목적으로만 동작합니다.</p>
+        </div>
+
+        <div class="content-box">
+          <h2>2. 권한(Permissions) 사용 목적</h2>
+          <p>확장 프로그램이 원활히 동작하기 위해 구글 크롬 웹스토어 정책에 따라 다음과 같은 최소한의 권한을 요청합니다:</p>
+          <ul class="default-list">
+            <li><strong>activeTab</strong>: 현재 활성화된 탭이 치지직(chzzk.naver.com) 사이트인지 확인하고, 화면 우측 하단에 다운로드 사용자 인터페이스(패널)를
+              주입하기 위해 사용됩니다.</li>
+            <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
+            </li>
+            <li><strong>호스트 권한 (*.naver.com 등)</strong>: 동영상 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 정상적인 화질 제공을 위해 로그인된
+              사용자의 세션을 통해 우회 없이 직접 다운로드되며, 이러한 데이터 통신은 사용자의 브라우저 내에서만 이루어지고 외부 서버로 어떠한 데이터도 전송되지 않습니다.</li>
+          </ul>
+        </div>
+
+        <div class="content-box">
+          <h2>3. 제3자 데이터 제공</h2>
+          <p>수집하는 데이터가 원천적으로 없으므로 제3자에게 데이터를 제공하거나 공유하는 과정이 존재하지 않습니다. 확장 프로그램의 모든 통신과 다운로드 처리 과정은 사용자와 네이버 서버 간 직접
+            이루어지며, <span class="highlight">제3자 서버를 경유하지 않고 사용자의 로컬 브라우저 내에서 완료</span>됩니다.</p>
+        </div>
+
+        <div class="content-box">
+          <h2>4. 개인정보 처리방침의 변경</h2>
+          <p>본 확장 프로그램의 업데이트나 구글 크롬 웹스토어 정책 변경 등에 따라 이 개인정보 처리방침의 내용이 변경될 수 있습니다. 변경사항이 발생할 경우 버전 업데이트를 통해 안내되며, 본 페이지가
+            지속적으로 최신화될 것입니다.</p>
+        </div>
+      </div>
+
+      <!-- 사이드바 (업데이트 내역) -->
+      <div class="sidebar">
+        <div class="content-box">
+          <h2>업데이트 내역</h2>
+          <ul class="history-list">
+            <li class="history-item">
+              <div class="version">v2.1.1</div>
+              <div class="desc">UI 안정성 및 레이아웃 고도화, 폰트 로딩 최적화 및 표준 속성 호환성 패치</div>
+            </li>
+            <li class="history-item">
+              <div class="version">v2.1.0</div>
+              <div class="desc">클립 다운로드 기능 수정 및 로그 패널 UI/UX 개선</div>
+            </li>
+            <li class="history-item">
+              <div class="version">v2.0.0</div>
+              <div class="desc">코어 전면 개편, DASH MPD 파싱 적용 및 2열 그리드 UI 도입</div>
+            </li>
+            <li class="history-item">
+              <div class="version">v1.2.0</div>
+              <div class="desc">비디오 응답 자동 판별 기능 (XML/JSON/HLS), v1/v2 이중 처리 로직 추가</div>
+            </li>
+            <li class="history-item">
+              <div class="version">v1.1.0</div>
+              <div class="desc">API 호출을 Content Script로 이전하여 쿠키 연동성 향상</div>
+            </li>
+            <li class="history-item">
+              <div class="version">v1.0.0</div>
+              <div class="desc">Chzzk Downloader 최초 출시 (기본 다운로드 기능)</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      &copy; 2026 Chzzk Downloader. All rights reserved.<br>
+      이 확장 프로그램은 개인 용도의 학습 및 백업 목적으로 제작된 비공식 도구입니다.
+    </div>
+  </div>
+</body>
+
+</html>
