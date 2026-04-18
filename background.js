@@ -110,7 +110,16 @@ async function hlsDownload(masterUrl, title, itemId, tabId) {
 }
 
 function resolve(base, rel) { if (rel.startsWith('http')) return rel; try { return new URL(rel, base).href; } catch { return base.replace(/[^/]+$/, '') + rel; } }
-function sanitize(n) { return (n || 'chzzk').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 200); }
+function sanitize(n) {
+  const name = (n || 'chzzk')
+    .replace(/[\x00-\x1f\x7f]/g, '')      // 제어 문자 제거
+    .replace(/[\\/:*?"<>|]/g, '')          // Windows 금지 특수문자 제거
+    .replace(/\s+/g, ' ')                  // 연속 공백 단일화
+    .trim()                                // 앞뒤 공백 제거
+    .replace(/^\.+|\.+$/g, '')            // 앞뒤 점(.) 제거
+    .slice(0, 200);                        // 최대 200자
+  return name || 'chzzk';                 // 모두 제거된 경우 기본값
+}
 function prog(tabId, id, status, message, percent) {
   if (!tabId) return;
   chrome.tabs.sendMessage(tabId, { type: 'DOWNLOAD_PROGRESS', downloadId: String(id), status, message, percent: percent ?? null }).catch(() => {});

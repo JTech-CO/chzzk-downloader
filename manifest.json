@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Chzzk Downloader",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "치지직(Chzzk) VOD 및 클립을 원본 화질 MP4로 다운로드하는 확장 프로그램",
   "permissions": ["activeTab", "downloads"],
   "host_permissions": [
