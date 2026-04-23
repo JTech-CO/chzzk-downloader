@@ -113,7 +113,7 @@ function resolve(base, rel) { if (rel.startsWith('http')) return rel; try { retu
 function sanitize(n) {
   const name = (n || 'chzzk')
     .replace(/[\x00-\x1f\x7f]/g, '')      // 제어 문자 제거
-    .replace(/[\\/:*?"<>|]/g, '')          // Windows 금지 특수문자 제거
+    .replace(/[\\/:*?"<>|~#@%&]/g, '')          // Windows 금지 특수문자 제거
     .replace(/\s+/g, ' ')                  // 연속 공백 단일화
     .trim()                                // 앞뒤 공백 제거
     .replace(/^\.+|\.+$/g, '')            // 앞뒤 점(.) 제거
@@ -122,5 +122,5 @@ function sanitize(n) {
 }
 function prog(tabId, id, status, message, percent) {
   if (!tabId) return;
-  chrome.tabs.sendMessage(tabId, { type: 'DOWNLOAD_PROGRESS', downloadId: String(id), status, message, percent: percent ?? null }).catch(() => {});
+  chrome.tabs.sendMessage(tabId, { type: 'DOWNLOAD_PROGRESS', downloadId: String(id), status, message, percent: percent ?? null }).catch(() => { });
 }
