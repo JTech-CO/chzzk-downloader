@@ -1,6 +1,10 @@
 # Chzzk Downloader
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
+> 
+> [크롬 웹 스토어에서 Chzzk Downloader 추가하기](<https://chromewebstore.google.com/detail/pglcbbcphnbalglbhjngigjciijhgpih?utm_source=item-share-cb>)
+
+<img src="https://lh3.googleusercontent.com/UhhW1I3VMxsm7faCoAdj82APwp3I59kiSgqMguRFW_kfpTXISBAlwm6uCSVJPvDN8iG_lIo0WGuVOLR6nYBNS-IBwA=s1280-w1280-h800" alt="image1" width="49%"> <img src="https://lh3.googleusercontent.com/H76zs1fYO4t96FHk8MBicq_L6QuLSeJT9R5uIs3cBq2apYt5xjJm7frFSmxNm_ZdHFEhdSdHW6PKpmXnHiB8hAMY=s1280-w1280-h800" alt="image2" width="49%"> 
 
 ## 1. 소개 (Introduction)
 
