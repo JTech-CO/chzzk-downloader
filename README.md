@@ -2,7 +2,7 @@
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
 
-<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="33%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="33%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="33%">
+<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
 
 ## 1. 소개 (Introduction)
 
