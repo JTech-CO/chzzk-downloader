@@ -1,22 +1,30 @@
 {
   "manifest_version": 3,
   "name": "Chzzk Downloader",
-  "version": "2.1.2",
-  "description": "치지직(Chzzk) VOD 및 클립을 원본 화질 MP4로 다운로드하는 확장 프로그램",
-  "permissions": ["activeTab", "downloads"],
+  "version": "2.2.0",
+  "description": "치지직(Chzzk) 스트리머·편집자를 위한 클립/VOD 로컬 백업 도구",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "declarativeNetRequest"
+  ],
   "host_permissions": [
-    "https://chzzk.naver.com/*",
-    "https://api.chzzk.naver.com/*",
-    "https://apis.naver.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://chzzk.naver.com/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://chzzk.naver.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ],

@@ -1,10 +1,6 @@
 # Chzzk Downloader
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
-> 
-> [크롬 웹 스토어에서 Chzzk Downloader 추가하기](<https://chromewebstore.google.com/detail/pglcbbcphnbalglbhjngigjciijhgpih?utm_source=item-share-cb>)
-
-<img src="https://lh3.googleusercontent.com/UhhW1I3VMxsm7faCoAdj82APwp3I59kiSgqMguRFW_kfpTXISBAlwm6uCSVJPvDN8iG_lIo0WGuVOLR6nYBNS-IBwA=s1280-w1280-h800" alt="image1" width="49%"> <img src="https://lh3.googleusercontent.com/H76zs1fYO4t96FHk8MBicq_L6QuLSeJT9R5uIs3cBq2apYt5xjJm7frFSmxNm_ZdHFEhdSdHW6PKpmXnHiB8hAMY=s1280-w1280-h800" alt="image2" width="49%"> 
 
 ## 1. 소개 (Introduction)
 
@@ -114,13 +110,7 @@ chzzk-downloader/
 
 ## 6. 정보 (Info)
 
-- **Version**: `v2.1.2`
-- **Technical Updates (v2.1.2)**:
-  - **파일명 특수문자 처리 개선**: `sanitize()` 함수 로직 개선 — Windows 금지 특수문자(`\`, `/`, `:`, `*`, `?`, `"`, `<`, `>`, `|`) 및 제어 문자(ASCII 0–31, 127)를 `_`로 대체하지 않고 완전히 제거하도록 변경. 앞뒤 점(`.`) 제거, 모든 문자 제거 시 `chzzk` 기본값 반환
-- **Technical Updates (v2.1.1)**:
-  - **UI 안정성 고도화**: Universal Reset(box-sizing) 및 Z-index 최적화로 사이트 간섭 최소화
-  - **폰트 시스템 개선**: JSDelivr CDN 기반 Pretendard 가변 폰트 적용으로 로딩 신뢰성 확보
-  - **표준 호환성**: 최신 CSS 표준 `line-clamp` 속성 도입으로 브라우저 호환성 강화
+- **Version**: `v2.2.0`
 - **Notice**:
   - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
   - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.

@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.1.1 - Content Script
+// Chzzk Downloader v2.2.0 - Content Script
 
 (function () {
   'use strict';
@@ -28,9 +28,14 @@
 
   let currentSection = null, currentChannelId = null;
   let items = [], panelOpen = false, downloadStates = {}, debugLog = '';
+  let channelVodType = null;   // 'fast'(정식 VOD) | 'slow'(라이브 다시보기) | 'unknown' | null(미확인)
+  let noticeDismissed = false; // 현재 채널에서 안내 배너를 닫았는지
+  let noticeExpanded = false;  // 'inKey란?' 설명 펼침 여부
 
   function log(msg) {
-    debugLog = msg + '\n' + debugLog.slice(0, 3000);
+    const d = new Date();
+    const ts = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+    debugLog = `[${ts}] ${msg}\n` + debugLog.slice(0, 4000);
     const el = document.getElementById('cdl-debug');
     if (el) el.textContent = debugLog;
   }
@@ -47,6 +52,27 @@
     return r.text();
   }
 
+  // 중첩 JSON을 정규식으로 긁을 때 끝에 딸려오는 이스케이프 백슬래시(\)와
+  // &, \/ 를 정리한다. 특히 끝 백슬래시는 URL 파서가 /로 바꿔 토큰을 깨뜨린다(→403).
+  function cleanUrl(u) {
+    return u.replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/\\+$/, '');
+  }
+
+  // 라이브 다시보기(REPLAY) VOD는 inKey가 없고, 재생 정보가 liveRewindPlaybackJson
+  // (응답에 문자열로 중첩된 JSON)에 담긴다. 정규식으로 긁으면 토큰이 깨지므로 파싱해서 꺼낸다.
+  function extractPlaybackHls(c) {
+    const raw = c.liveRewindPlaybackJson || c.livePlaybackJson;
+    if (!raw) return null;
+    try {
+      const pb = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const hls = (pb.media || []).find(m => /HLS/i.test(m.protocol || m.mediaId || ''));
+      return hls && hls.path ? hls.path : null;
+    } catch (e) {
+      log(`[VOD] playbackJson 파싱 실패: ${e.message}`);
+      return null;
+    }
+  }
+
   // VOD Resolution: videoNo -> videoDetail -> videoId+inKey -> neonplayer -> DASH
   async function resolveVodUrl(videoNo) {
     log(`[VOD] Step 1: /service/v2/videos/${videoNo}`);
@@ -56,16 +82,55 @@
 
     const videoId = c.videoId;
     const inKey = c.inKey;
-    if (!videoId || !inKey) throw new Error(`videoId/inKey 없음. adult=${c.adult}, blindType=${c.blindType}`);
-
-    log(`[VOD] videoId=${videoId.slice(0, 16)}..., inKey 길이=${inKey?.length}`);
-    log(`[VOD] Step 2: neonplayer 호출`);
-
-    try {
-      return await callNeonplayer(videoId, inKey);
-    } catch (e) {
-      throw new Error(`VOD neonplayer 실패: ${e.message}`);
+    
+    // 업로드형 VOD: videoId + inKey → neonplayer DASH (최고화질, 클립과 동일한 검증 경로)
+    if (videoId && inKey) {
+      log(`[VOD] videoId=${videoId.slice(0, 16)}..., inKey 길이=${inKey.length}`);
+      log(`[VOD] Step 2: neonplayer 호출 (DASH 우선)`);
+      try {
+        return await callNeonplayer(videoId, inKey);
+      } catch (e) {
+        log(`[VOD] neonplayer 실패: ${e.message}, 다른 전략 시도`);
+      }
     }
+
+    // 라이브 다시보기(REPLAY) VOD: inKey가 없고 liveRewindPlaybackJson에 토큰 HLS가 들어있다.
+    const rewindHls = extractPlaybackHls(c);
+    if (rewindHls) {
+      log(`[VOD] liveRewindPlaybackJson에서 HLS 추출 (REPLAY)`);
+      return { type: 'hls', url: rewindHls };
+    }
+
+    if (videoId && !inKey) {
+      log(`[VOD] inKey 없음 (videoId=${videoId}). Strategy B: neonplayer key 없이 시도`);
+      try {
+        return await callNeonplayer(videoId, '');
+      } catch (e) {
+        log(`[VOD] Strategy B 실패: ${e.message}`);
+      }
+
+      log('[VOD] Strategy C: neonplayer dummy key 시도');
+      try {
+        const url = API.neonplayerV2(videoId, videoId);
+        const neoText = await fetchText(url);
+        const trimmed = neoText.trim();
+        if (trimmed.includes('<MPD')) return parseDashMpd(trimmed, url);
+        if (trimmed.startsWith('#EXTM3U')) return { type: 'hls', url, masterText: trimmed };
+      } catch (e) {
+        log(`[VOD] Strategy C 실패: ${e.message}`);
+      }
+    }
+
+    // 최후 폴백: 응답 JSON에서 직접 URL 정규식 스캔 (위 경로가 모두 실패한 예외 케이스)
+    // cleanUrl로 중첩 JSON 이스케이프(특히 끝 백슬래시)를 정리해 토큰 깨짐을 방지한다.
+    log('[VOD] Fallback: 응답 JSON에서 직접 URL 스캔');
+    const jsonStr = JSON.stringify(c);
+    const mp4Match = jsonStr.match(/"(https?:\/\/[^"]+\.mp4[^"]*)"/);
+    if (mp4Match) { log('[VOD] 직접 MP4 URL 발견'); return { type: 'mp4', url: cleanUrl(mp4Match[1]) }; }
+    const m3u8Match = jsonStr.match(/"(https?:\/\/[^"]+\.m3u8[^"]*)"/);
+    if (m3u8Match) { log('[VOD] 직접 HLS URL 발견'); return { type: 'hls', url: cleanUrl(m3u8Match[1]) }; }
+
+    throw new Error(`videoId/inKey 없음. adult=${c.adult}, blindType=${c.blindType}`);
   }
 
   // DASH MPD Parser: SegmentTemplate or BaseURL extraction
@@ -285,7 +350,7 @@
       const neoText = await fetchText(url);
       const trimmed = neoText.trim();
       if (trimmed.includes('<MPD')) return parseDashMpd(trimmed, url);
-      if (trimmed.startsWith('#EXTM3U')) return { type: 'hls', url };
+      if (trimmed.startsWith('#EXTM3U')) return { type: 'hls', url, masterText: trimmed };
       log(`[CLIP] Strategy C 응답: ${trimmed.slice(0, 80)}`);
     } catch (e) {
       log(`[CLIP] Strategy C 실패: ${e.message}`);
@@ -305,7 +370,7 @@
       return parseDashMpd(trimmed, url);
     }
     if (trimmed.startsWith('#EXTM3U')) {
-      return { type: 'hls', url };
+      return { type: 'hls', url, masterText: trimmed };
     }
     if (trimmed.startsWith('{')) {
       const json = JSON.parse(trimmed);
@@ -374,6 +439,7 @@
     if (section !== currentSection || channelId !== currentChannelId) {
       currentSection = section; currentChannelId = channelId;
       items = []; downloadStates = {};
+      channelVodType = null; noticeDismissed = false; noticeExpanded = false;
       if (section) { $('cdl-section-tag').textContent = section === 'videos' ? 'VOD' : 'CLIP'; setTimeout(scanPage, 800); }
       render();
     }
@@ -392,35 +458,97 @@
       if (currentSection === 'videos') {
         const data = await fetchJson(API.videoList(currentChannelId, Math.max(0, parseInt(p.get('page') || '1') - 1), 24, p.get('sortType') || 'LATEST', p.get('videoType') || ''));
         const list = data?.content?.data || data?.data || [];
-        log(`[Scan] VOD ${list.length}개`);
+        log(`[Scan] VOD API ${list.length}개`);
         items = list.map(v => ({ id: String(v.videoNo), type: 'video', title: v.videoTitle || '', thumbnail: v.thumbnailImageUrl || '', duration: v.duration || 0, views: v.readCount || 0, date: v.publishDate || '' }));
       } else {
         const data = await fetchJson(API.clipList(currentChannelId, 0, 24, p.get('orderType') || 'POPULAR', p.get('filterType') || 'ALL'));
         const list = data?.content?.data || data?.data || [];
-        log(`[Scan] CLIP ${list.length}개`);
+        log(`[Scan] CLIP API ${list.length}개`);
         items = list.map(c => ({ id: c.clipUID || c.clipId || '', type: 'clip', title: c.clipTitle || '', thumbnail: c.thumbnailImageUrl || '', duration: c.duration || 0, views: c.readCount || 0, date: c.createdDate || '' }));
       }
     } catch (e) {
-      log(`[Scan] API 실패: ${e.message}, DOM 폴백`);
-      scanDom();
+      log(`[Scan] API 실패: ${e.message}`);
     }
-    if (items.length === 0) { log('[Scan] 0건 → DOM 폴백'); scanDom(); }
+    
+    // 항상 DOM과 병합하여 무한 스크롤로 추가된 항목도 반영
+    scanDom();
     render();
+    detectVodType();   // 채널 VOD 유형(빠름/느림) 판별 후 안내 배너 표시
   }
 
   function scanDom() {
     const sel = currentSection === 'videos' ? 'a[href*="/video/"]' : 'a[href*="/clips/"]';
     const re = currentSection === 'videos' ? /\/video\/(\d+)/ : /\/clips\/([A-Za-z0-9_-]+)/;
+    
+    // 기존 API에서 가져온 항목들을 맵으로 구성하여 메타데이터 보존
+    const existingMap = new Map(items.map(i => [i.id, i]));
     const found = [], seen = new Set();
+    
     document.querySelectorAll(sel).forEach(link => {
       const m = link.href.match(re);
-      if (!m || seen.has(m[1])) return; seen.add(m[1]);
+      if (!m || seen.has(m[1])) return; 
+      seen.add(m[1]);
+      
+      const id = m[1];
+      const apiItem = existingMap.get(id);
+      
       const card = link.closest('[class*="card"]') || link;
       const img = card.querySelector('img');
       const t = card.querySelector('[class*="title"], h3, h4, p');
-      found.push({ id: m[1], type: currentSection === 'videos' ? 'video' : 'clip', title: t?.textContent?.trim() || m[1], thumbnail: img?.src || '', duration: 0, views: 0, date: '' });
+      
+      found.push({ 
+        id: id, 
+        type: currentSection === 'videos' ? 'video' : 'clip', 
+        title: apiItem?.title || t?.textContent?.trim() || id, 
+        thumbnail: apiItem?.thumbnail || img?.src || '', 
+        duration: apiItem?.duration || 0, 
+        views: apiItem?.views || 0, 
+        date: apiItem?.date || '' 
+      });
     });
-    if (found.length > 0) items = found;
+    
+    if (found.length > 0) {
+      items = found;
+      log(`[Scan] DOM 스캔 완료: 총 ${items.length}개 발견`);
+    }
+  }
+
+  // 채널의 VOD 유형 판별 — 정식 VOD(inKey/ABR_HLS)=빠름, 라이브 다시보기(NONE)=느림.
+  // 목록 API엔 vodStatus가 없어 최신 영상 1건의 상세를 1회 호출(채널 고정 속성이라 대표값).
+  async function detectVodType() {
+    if (currentSection !== 'videos' || channelVodType !== null) return;
+    const first = items.find(i => i.type === 'video');
+    if (!first) return;
+    try {
+      const c = (await fetchJson(API.videoDetail(first.id))).content || {};
+      if (c.inKey || c.vodStatus === 'ABR_HLS') channelVodType = 'fast';
+      else if (c.vodStatus === 'NONE' || c.liveRewindPlaybackJson) channelVodType = 'slow';
+      else channelVodType = 'unknown';
+      log(`[Notice] 채널 VOD 유형=${channelVodType} (vodStatus=${c.vodStatus}, inKey=${c.inKey ? 'O' : 'X'})`);
+      render();
+    } catch (e) {
+      log(`[Notice] VOD 유형 판별 실패: ${e.message}`); // null 유지 → 다음 스캔 때 재시도
+    }
+  }
+
+  // 빠름/느림 안내 배너 HTML (+ 'inKey란?' 펼치기 설명)
+  function renderNotice() {
+    if (currentSection !== 'videos' || noticeDismissed) return '';
+    if (channelVodType !== 'slow' && channelVodType !== 'fast') return '';
+    const slow = channelVodType === 'slow';
+    const cls = slow ? 'cdl-notice-warn' : 'cdl-notice-ok';
+    const title = slow ? '이 채널 영상은 다운로드가 느릴 수 있어요' : '이 채널 영상은 비교적 빠르게 다운로드돼요';
+    const body = slow
+      ? '이 채널에는 inKey가 없어 다운로드가 느릴 수 있습니다. 다시보기가 완성된 하나의 영상이 아니라 수많은 조각들로 저장되어 있어 개별 다운로드 후 합성에 시간이 소요됩니다.'
+      : '이 채널에는 inKey가 있어 다운로드가 비교적 빠릅니다. 다시보기가 완성된 하나의 영상으로 되어 있습니다.';
+    const explain = "inKey는 완성 변환된 다시보기 영상을 재생할 때 쓰이는 키입니다. 스트리머가 다시보기를 정식 VOD로 저장하면 영상이 하나의 완성 파일로 변환되며 inKey가 생겨 빠르게 받을 수 있습니다. 저장하지 않으면 임시 '라이브 다시보기'(잘게 쪼갠 조각)로만 남아 inKey가 없고 느립니다. inKey 유무는 채널 규모가 아니라 방송의 다시보기 저장 방식에 따라 갈립니다.";
+    return `<div class="cdl-notice ${cls}">
+        <button class="cdl-notice-x" id="cdl-notice-close" title="닫기">×</button>
+        <div class="cdl-notice-title">${title}</div>
+        <div class="cdl-notice-body">${body}</div>
+        <button class="cdl-notice-more" id="cdl-notice-more">${noticeExpanded ? 'inKey란? 접기' : 'inKey란?'}</button>
+        ${noticeExpanded ? `<div class="cdl-notice-explain">${explain}</div>` : ''}
+      </div>`;
   }
 
   // ---- Render ----
@@ -440,7 +568,7 @@
       return;
     }
 
-    content.innerHTML = `<div class="cdl-grid">${items.map(item => {
+    content.innerHTML = `${renderNotice()}<div class="cdl-grid">${items.map(item => {
       const ds = downloadStates[item.id];
       const active = ds && ds.status !== 'done' && ds.status !== 'error';
       const done = ds?.status === 'done';
@@ -464,6 +592,11 @@
           </div>
         </div>`;
     }).join('')}</div>`;
+
+    const noticeClose = $('cdl-notice-close');
+    if (noticeClose) noticeClose.onclick = () => { noticeDismissed = true; render(); };
+    const noticeMore = $('cdl-notice-more');
+    if (noticeMore) noticeMore.onclick = () => { noticeExpanded = !noticeExpanded; render(); };
 
     content.querySelectorAll('.cdl-tile').forEach(tile => {
       tile.onclick = () => {
@@ -491,7 +624,7 @@
 
       } else if (r.type === 'hls') {
         downloadStates[id] = { status: 'info', message: 'HLS 다운로드...', percent: 0 }; render();
-        chrome.runtime.sendMessage({ type: 'DOWNLOAD_HLS', hlsUrl: r.url, title: title || id, itemId: id }, res => {
+        chrome.runtime.sendMessage({ type: 'DOWNLOAD_HLS', hlsUrl: r.url, masterText: r.masterText, title: title || id, itemId: id }, res => {
           if (res?.error) { downloadStates[id] = { status: 'error', message: res.error }; render(); }
         });
 
@@ -532,6 +665,8 @@
     if (msg.type === 'DOWNLOAD_PROGRESS') {
       downloadStates[msg.downloadId] = { status: msg.status, message: msg.message, percent: msg.percent || 0 };
       render();
+    } else if (msg.type === 'CDL_LOG') {
+      log(msg.msg);
     }
   });
 
