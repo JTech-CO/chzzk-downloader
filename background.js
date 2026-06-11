@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.0 - Background Script (MP4, HLS, DASH, OPFS streaming)
+// Chzzk Downloader v2.2.1 - Background Script (MP4, HLS, DASH, OPFS streaming)
 const active = new Map();
 
 // 동적 우회 규칙 설정 (백그라운드 통신에만 국한시켜 content.js CORS 방해 원천 차단)
@@ -158,10 +158,7 @@ async function downloadToMemory(segments, title, itemId, tabId, creds, ac) {
 
   prog(tabId, itemId, 'merging', '파일 병합 중...');
   const blob = new Blob(chunks, { type: 'video/mp4' });
-  const url = URL.createObjectURL(blob);
-  chrome.downloads.download({ url, filename: sanitize(title) + '.mp4' }, () => {
-    setTimeout(() => URL.revokeObjectURL(url), 120000);
-  });
+  await deliverDownload(title, { blob }, tabId, itemId);
   prog(tabId, itemId, 'done', '다운로드 시작됨');
   return { status: 'started' };
 }
@@ -236,23 +233,87 @@ async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stre
 
   // 디스크 파일을 그대로 다운로드에 전달 (메모리로 다시 안 올림)
   prog(tabId, itemId, 'merging', '파일 저장 중...');
-  const file = await fh.getFile();
-  const url = URL.createObjectURL(file);
-  const cleanup = () => { URL.revokeObjectURL(url); root.removeEntry(name).catch(() => {}); };
-  chrome.downloads.download({ url, filename: sanitize(title) + '.mp4' }, (id) => {
+  await deliverDownload(title, { root, name, fh }, tabId, itemId);
+  prog(tabId, itemId, 'done', '다운로드 시작됨');
+  return { status: 'started' };
+}
+
+// ---- 완성 파일 전달 (chrome.downloads) ----
+// MV3 서비스워커 일부 환경은 URL.createObjectURL이 없어("URL.createObjectURL is not a function")
+// blob URL을 만들 수 없다. 이 경우 offscreen 문서(DOM 컨텍스트)에서 URL을 생성해 우회한다.
+function canCreateObjectUrlInSW() {
+  return typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function';
+}
+
+async function deliverDownload(title, src, tabId, itemId) {
+  const filename = sanitize(title) + '.mp4';
+
+  // 1) SW에서 createObjectURL이 되는 환경 → 기존 경로 그대로
+  if (canCreateObjectUrlInSW()) {
+    let url, cleanup;
+    if (src.blob) {
+      url = URL.createObjectURL(src.blob);
+      cleanup = () => { try { URL.revokeObjectURL(url); } catch (_) {} };
+    } else {
+      const file = await src.fh.getFile();
+      url = URL.createObjectURL(file);
+      cleanup = () => { try { URL.revokeObjectURL(url); } catch (_) {} src.root.removeEntry(src.name).catch(() => {}); };
+    }
+    downloadAndCleanup(url, filename, cleanup);
+    return;
+  }
+
+  // 2) createObjectURL 미지원 → offscreen 경유 (반드시 OPFS 파일 필요)
+  let root = src.root, name = src.name;
+  if (src.blob) {
+    // 메모리 Blob은 offscreen이 못 받으므로 OPFS에 먼저 기록
+    root = await navigator.storage.getDirectory();
+    name = `cdl_dl_${String(itemId).replace(/[^a-zA-Z0-9_-]/g, '')}_${Date.now()}.mp4`;
+    const fh = await root.getFileHandle(name, { create: true });
+    const w = await fh.createWritable();
+    await w.write(src.blob);
+    await w.close();
+  }
+  const url = await offscreenCreateUrl(name);
+  const cleanup = () => { offscreenRevokeUrl(url); if (root) root.removeEntry(name).catch(() => {}); };
+  downloadAndCleanup(url, filename, cleanup);
+}
+
+function downloadAndCleanup(url, filename, cleanup) {
+  chrome.downloads.download({ url, filename }, (id) => {
     if (chrome.runtime.lastError || id === undefined) { cleanup(); return; }
     const onChanged = (delta) => {
       if (delta.id !== id || !delta.state) return;
       const s = delta.state.current;
       if (s === 'complete' || s === 'interrupted') {
         chrome.downloads.onChanged.removeListener(onChanged);
-        cleanup();                                     // 대용량도 복사 완료 후에만 정리
+        cleanup();                                     // 복사 완료/중단 후에만 정리
       }
     };
     chrome.downloads.onChanged.addListener(onChanged);
   });
-  prog(tabId, itemId, 'done', '다운로드 시작됨');
-  return { status: 'started' };
+}
+
+async function ensureOffscreen() {
+  if (!chrome.offscreen) throw new Error('이 브라우저는 offscreen 미지원 (크롬/웨일 업데이트 필요)');
+  try {
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['BLOBS'],
+      justification: '대용량 영상 파일 저장을 위한 blob URL 생성',
+    });
+  } catch (_) { /* 이미 생성됨 → 무시 */ }
+}
+
+async function offscreenCreateUrl(name) {
+  await ensureOffscreen();
+  const res = await chrome.runtime.sendMessage({ target: 'offscreen', type: 'OFFSCREEN_CREATE_URL', name });
+  if (!res || res.error || !res.url) throw new Error('offscreen URL 생성 실패: ' + (res && res.error ? res.error : '응답 없음'));
+  return res.url;
+}
+
+function offscreenRevokeUrl(url) {
+  chrome.runtime.sendMessage({ target: 'offscreen', type: 'OFFSCREEN_REVOKE_URL', url }).catch(() => {});
 }
 
 // HLS Parser & Download

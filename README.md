@@ -2,17 +2,15 @@
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
 
-<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
-
 ## 1. 소개 (Introduction)
 
-이 프로그램은 네이버 치지직(Chzzk) 스트리머 채널의 동영상(VOD) 및 클립을 간편하게 다운로드할 수 있도록 돕는 비공식 확장 프로그램입니다. 
-치지직 영상 탭으로 이동 시 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 백업 및 오프라인 환경에서 자유롭게 시청할 수 있습니다.
+이 프로젝트는 네이버 치지직(Chzzk) 스트리머 채널의 동영상(VOD) 및 클립을 간편하게 다운로드할 수 있도록 돕는 비공식 확장 프로그램입니다. 
+치지직 영상 탭으로 이동 시 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 학습 및 백업을 위한 오프라인 환경에서 자유롭게 시청하는 가치를 제공합니다.
 
 **주요 기능**
 - **VOD & 클립 추출**: DASH MPD 스트리밍 XML을 파싱하여 세그먼트 파일을 병렬 다운로드 후, 하나의 고화질 MP4 파일로 자동 병합합니다. (직접 MP4 다운로드도 지원)
 - **그리드 기반 패널 UI**: 현재 페이지의 영상을 감지하여 썸네일과 진행 상태바가 포함된 2열 그리드 리스트를 제공합니다.
-- **디버그 모드 모니터링**: 실시간 API 호출 상태 흐름과 응답 에러를 즉각적으로 파악할 수 있는 로그 뷰어 시스템을 내장하고 있습니다.
+- **개발자 디버그 모드 모니터링**: 실시간 API 호출 상태 흐름과 응답 에러를 즉각적으로 파악할 수 있는 로그 뷰어 시스템을 내장하고 있습니다.
 
 **지원 콘텐츠 요약**
 | 유형 | URL 패턴 | 다운로드 방식 | 출력 형식 |
@@ -112,9 +110,9 @@ chzzk-downloader/
 
 ## 6. 정보 (Info)
 
-- **Version**: `v2.2.0`
+- **Version**: `v2.2.1`
 - **Notice**:
   - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
   - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.
-  - 사용자 본인의 VOD 백업 목적으로만 활용하십시오.
+  - 사용자 본인의 VOD 백업 및 개인용 학습 목적으로만 활용하십시오.
 - **Privacy Policy**: [개인정보 처리방침 안내](<https://jtech-co.github.io/chzzk-downloader/privacy-policy.html>)

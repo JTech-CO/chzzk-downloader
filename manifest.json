@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Chzzk Downloader",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "치지직(Chzzk) 스트리머·편집자를 위한 클립/VOD 로컬 백업 도구",
   "permissions": [
     "activeTab",
     "downloads",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"

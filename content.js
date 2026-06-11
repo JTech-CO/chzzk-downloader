@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.0 - Content Script
+// Chzzk Downloader v2.2.1 - Content Script
 
 (function () {
   'use strict';
