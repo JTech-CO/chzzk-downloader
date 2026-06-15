@@ -2,6 +2,8 @@
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
 
+<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
+
 ## 1. 소개 (Introduction)
 
 이 프로젝트는 네이버 치지직(Chzzk) 스트리머 채널의 동영상(VOD) 및 클립을 간편하게 다운로드할 수 있도록 돕는 비공식 확장 프로그램입니다. 
