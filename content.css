@@ -18,6 +18,7 @@
   font-size: 13px; color: var(--tx); line-height: 1.4;
   pointer-events: auto;
 }
+#chzzk-dl-panel.cdl-hidden { display: none; }
 
 /* Toggle */
 #chzzk-dl-toggle {

@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.1 - Content Script
+// Chzzk Downloader v2.2.2 - Content Script
 
 (function () {
   'use strict';
@@ -386,6 +386,7 @@
   // Panel UI Creation
   const panel = document.createElement('div');
   panel.id = 'chzzk-dl-panel';
+  panel.classList.add('cdl-hidden');
   panel.innerHTML = `
     <div id="chzzk-dl-body">
       <div class="cdl-header">${ICONS.download}<span class="cdl-header-title">Chzzk Downloader</span><span class="cdl-header-section" id="cdl-section-tag"></span></div>
@@ -405,6 +406,14 @@
   document.body.appendChild(panel);
 
   const $ = id => document.getElementById(id);
+  function setPanelVisible(visible) {
+    panel.classList.toggle('cdl-hidden', !visible);
+    if (!visible) {
+      panelOpen = false;
+      $('chzzk-dl-body').classList.remove('open');
+    }
+  }
+
   $('chzzk-dl-toggle').onclick = () => { panelOpen = !panelOpen; $('chzzk-dl-body').classList.toggle('open', panelOpen); };
   $('cdl-refresh-btn').onclick = () => scanPage();
   $('cdl-debug-toggle').onclick = () => {
@@ -426,6 +435,8 @@
 
   // SPA URL Monitoring
   function parseUrl() {
+    if (location.href.toLowerCase().includes('live')) return { section: null, channelId: null };
+
     const p = location.pathname;
     const v = p.match(/^\/([a-f0-9]{32})\/videos/);
     const c = p.match(/^\/([a-f0-9]{32})\/clips/);
@@ -436,11 +447,14 @@
 
   function checkUrl() {
     const { section, channelId } = parseUrl();
+    setPanelVisible(Boolean(section));
+
     if (section !== currentSection || channelId !== currentChannelId) {
       currentSection = section; currentChannelId = channelId;
       items = []; downloadStates = {};
       channelVodType = null; noticeDismissed = false; noticeExpanded = false;
       if (section) { $('cdl-section-tag').textContent = section === 'videos' ? 'VOD' : 'CLIP'; setTimeout(scanPage, 800); }
+      else { $('cdl-section-tag').textContent = ''; }
       render();
     }
   }

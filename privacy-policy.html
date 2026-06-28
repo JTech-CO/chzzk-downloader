@@ -263,7 +263,7 @@
         </svg>
       </div>
       <h1>Chzzk Downloader 개인정보 처리방침</h1>
-      <div class="last-updated">최종 업데이트: 2026년 6월 11일</div>
+      <div class="last-updated">최종 업데이트: 2026년 6월 29일</div>
     </div>
 
     <div class="layout-grid">
@@ -273,15 +273,15 @@
           <h2>1. 개인정보 수집 및 이용</h2>
           <p><strong>Chzzk Downloader</strong>는 사용자 개인을 식별할 수 있는 <span class="highlight">어떠한 개인정보도 수집, 저장, 전송하지
               않습니다.</span></p>
-          <p>본 확장 프로그램은 오직 네이버 치지직(Chzzk)에서 제공되는 동영상(VOD) 및 클립의 다운로드 기능을 제공하는 목적으로만 동작합니다.</p>
+          <p>본 확장 프로그램은 오직 네이버 치지직(Chzzk)에서 제공되는 동영상(VOD) 및 클립의 다운로드 기능을 제공하는 목적으로만 동작합니다. 라이브 방송 화면에서는 다운로드 사용자 인터페이스를 표시하지 않습니다.</p>
         </div>
 
         <div class="content-box">
           <h2>2. 권한(Permissions) 사용 목적</h2>
           <p>확장 프로그램이 원활히 동작하기 위해 구글 크롬 웹스토어 정책에 따라 다음과 같은 최소한의 권한을 요청합니다:</p>
           <ul class="default-list">
-            <li><strong>activeTab</strong>: 현재 활성화된 탭이 치지직(chzzk.naver.com) 사이트인지 확인하고, 화면 우측 하단에 다운로드 사용자 인터페이스(패널)를
-              주입하기 위해 사용됩니다.</li>
+            <li><strong>activeTab</strong>: 현재 활성화된 탭이 치지직(chzzk.naver.com) 사이트의 동영상/클립 URL인지 확인하고, 지원되는 화면에서만 우측 하단 다운로드 사용자 인터페이스(패널)를
+              표시하기 위해 사용됩니다. 라이브 방송 페이지에서는 UI를 숨겨 채팅창을 방해하지 않습니다.</li>
             <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
             </li>
             <li><strong>declarativeNetRequest</strong>: 네이버 CDN의 외부 접근(핫링킹) 차단을 우회하기 위해, 백그라운드 다운로드 요청의 출처(Referer/Origin) 헤더를 치지직 웹사이트로 설정하는 용도로만 사용됩니다. 다운로드 외의 웹 요청은 가로채거나 수정하지 않습니다.</li>
@@ -309,6 +309,10 @@
         <div class="content-box">
           <h2>업데이트 내역</h2>
           <ul class="history-list">
+            <li class="history-item">
+              <div class="version">v2.2.2</div>
+              <div class="desc">라이브 방송 URL에서는 다운로드 아이콘과 패널을 표시하지 않고, 동영상(VOD) 및 클립 탭에서만 다운로드 UI가 나타나도록 개선</div>
+            </li>
             <li class="history-item">
               <div class="version">v2.2.1</div>
               <div class="desc">일부 환경에서 다운로드 완료 후 저장이 실패하던 호환성 문제(blob URL 생성 제약) 수정 및 offscreen 권한 추가</div>

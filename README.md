@@ -2,16 +2,15 @@
 
 > **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
 
-<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
-
 ## 1. 소개 (Introduction)
 
 이 프로젝트는 네이버 치지직(Chzzk) 스트리머 채널의 동영상(VOD) 및 클립을 간편하게 다운로드할 수 있도록 돕는 비공식 확장 프로그램입니다. 
-치지직 영상 탭으로 이동 시 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 학습 및 백업을 위한 오프라인 환경에서 자유롭게 시청하는 가치를 제공합니다.
+치지직 동영상 또는 클립 탭으로 이동 시에만 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 학습 및 백업을 위한 오프라인 환경에서 자유롭게 시청하는 가치를 제공합니다.
 
 **주요 기능**
 - **VOD & 클립 추출**: DASH MPD 스트리밍 XML을 파싱하여 세그먼트 파일을 병렬 다운로드 후, 하나의 고화질 MP4 파일로 자동 병합합니다. (직접 MP4 다운로드도 지원)
 - **그리드 기반 패널 UI**: 현재 페이지의 영상을 감지하여 썸네일과 진행 상태바가 포함된 2열 그리드 리스트를 제공합니다.
+- **라이브 방송 화면 보호**: 라이브 방송 URL에서는 다운로드 아이콘을 표시하지 않아 채팅창과 방송 시청 영역을 가리지 않습니다.
 - **개발자 디버그 모드 모니터링**: 실시간 API 호출 상태 흐름과 응답 에러를 즉각적으로 파악할 수 있는 로그 뷰어 시스템을 내장하고 있습니다.
 
 **지원 콘텐츠 요약**
@@ -19,6 +18,8 @@
 |------|----------|-------------|----------|
 | VOD (다시보기) | `/{channelId}/videos` | DASH MPD → 세그먼트 병렬 다운로드 병합 | MP4 |
 | 클립 | `/{channelId}/clips` | DASH MPD → 세그먼트 병렬 다운로드 병합 | MP4 |
+
+라이브 방송 URL(`live` 포함)에서는 다운로드 아이콘과 패널이 표시되지 않습니다.
 
 ## 2. 기술 스택 (Tech Stack)
 
@@ -32,7 +33,7 @@
 ```
 Content Script (content.js)                    Background (background.js)
 ┌──────────────────────────────┐               ┌─────────────────────────┐
-│ URL 감지 (SPA pushState 감시)│               │ DASH 세그먼트 병렬 다운로드 │
+│ URL 감지 (videos/clips 한정)│               │ DASH 세그먼트 병렬 다운로드 │
 │ Chzzk API 호출 (쿠키 포함)   │ ──segments──▶ │  (6개 동시, Blob 병합)    │
 │ DASH MPD XML 파서            │               │ HLS 세그먼트 다운로드     │
 │ 패널 UI (2열 그리드)         │ ◀──progress── │ chrome.downloads API     │
@@ -96,7 +97,7 @@ neonplayer API는 JSON이 아닌 **DASH MPD(XML)** 을 반환합니다.
 2. **실행 (Run)**
    - 웹 브라우저에서 [치지직](https://chzzk.naver.com/)에 접속하여 본인의 계정으로 **로그인**합니다.
    - 다운로드받고자 하는 스트리머의 채널에서 **동영상** 또는 **클립** 탭으로 진입합니다.
-   - 화면 우측 하단의 초록색 다운로드 스크롤러 아이콘(⬇)을 클릭해 패널 창을 엽니다.
+   - 화면 우측 하단의 초록색 다운로드 스크롤러 아이콘(⬇)을 클릭해 패널 창을 엽니다. 라이브 방송 페이지에서는 아이콘이 표시되지 않습니다.
    - 표시되는 영상 목록 중 원하는 카드를 클릭하면 그 즉시 다운로드 파싱이 시작됩니다.
 
 ## 5. 폴더 구조 (Structure)
@@ -112,7 +113,7 @@ chzzk-downloader/
 
 ## 6. 정보 (Info)
 
-- **Version**: `v2.2.1`
+- **Version**: `v2.2.2`
 - **Notice**:
   - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
   - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.
