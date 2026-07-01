@@ -57,6 +57,19 @@
   padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: .3px;
 }
 
+/* Toolbar */
+.cdl-toolbar {
+  display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--brd);
+  background: rgba(255,255,255,.015);
+}
+.cdl-sort-btn {
+  flex: 1; height: 28px; border-radius: 6px; border: 1px solid var(--brd);
+  background: transparent; color: var(--tx2); font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.cdl-sort-btn:hover { border-color: var(--acc); color: var(--acc); }
+.cdl-sort-btn.active { border-color: var(--acc); background: var(--acc-d); color: var(--acc); }
+
 /* Empty */
 .cdl-empty { padding: 36px 20px; text-align: center; color: var(--tx2); }
 .cdl-empty svg { width: 36px; height: 36px; fill: var(--tx2); opacity: .4; margin-bottom: 10px; }

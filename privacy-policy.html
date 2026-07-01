@@ -263,7 +263,7 @@
         </svg>
       </div>
       <h1>Chzzk Downloader 개인정보 처리방침</h1>
-      <div class="last-updated">최종 업데이트: 2026년 6월 29일</div>
+      <div class="last-updated">최종 업데이트: 2026년 7월 1일</div>
     </div>
 
     <div class="layout-grid">
@@ -274,6 +274,7 @@
           <p><strong>Chzzk Downloader</strong>는 사용자 개인을 식별할 수 있는 <span class="highlight">어떠한 개인정보도 수집, 저장, 전송하지
               않습니다.</span></p>
           <p>본 확장 프로그램은 오직 네이버 치지직(Chzzk)에서 제공되는 동영상(VOD) 및 클립의 다운로드 기능을 제공하는 목적으로만 동작합니다. 라이브 방송 화면에서는 다운로드 사용자 인터페이스를 표시하지 않습니다.</p>
+          <p>동영상/클립 목록의 추가 페이지 로딩과 최신순·과거순·인기순 정렬은 사용자의 브라우저 안에서만 처리되며, 별도의 외부 서버로 목록 정보나 이용 기록을 전송하지 않습니다.</p>
         </div>
 
         <div class="content-box">
@@ -282,11 +283,11 @@
           <ul class="default-list">
             <li><strong>activeTab</strong>: 현재 활성화된 탭이 치지직(chzzk.naver.com) 사이트의 동영상/클립 URL인지 확인하고, 지원되는 화면에서만 우측 하단 다운로드 사용자 인터페이스(패널)를
               표시하기 위해 사용됩니다. 라이브 방송 페이지에서는 UI를 숨겨 채팅창을 방해하지 않습니다.</li>
-            <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
+            <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트와 MP4 초기화 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
             </li>
             <li><strong>declarativeNetRequest</strong>: 네이버 CDN의 외부 접근(핫링킹) 차단을 우회하기 위해, 백그라운드 다운로드 요청의 출처(Referer/Origin) 헤더를 치지직 웹사이트로 설정하는 용도로만 사용됩니다. 다운로드 외의 웹 요청은 가로채거나 수정하지 않습니다.</li>
             <li><strong>offscreen</strong>: 일부 브라우저 환경에서 완성된 영상 파일을 저장할 때 필요한 임시 다운로드 주소(blob URL)를 생성하기 위해 화면에 보이지 않는 문서를 사용합니다. 영상 저장 외의 작업은 수행하지 않습니다.</li>
-            <li><strong>호스트 권한 (*.naver.com 등)</strong>: 동영상 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 정상적인 화질 제공을 위해 로그인된
+            <li><strong>호스트 권한 (*.naver.com 등)</strong>: 동영상/클립 목록과 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 목록이 여러 페이지로 나뉜 경우에도 같은 목적 범위 안에서 순차적으로 조회합니다. 정상적인 화질 제공을 위해 로그인된
               사용자의 세션을 통해 우회 없이 직접 다운로드되며, 이러한 데이터 통신은 사용자의 브라우저 내에서만 이루어지고 외부 서버로 어떠한 데이터도 전송되지 않습니다.</li>
           </ul>
         </div>
@@ -309,6 +310,10 @@
         <div class="content-box">
           <h2>업데이트 내역</h2>
           <ul class="history-list">
+            <li class="history-item">
+              <div class="version">v2.2.3</div>
+              <div class="desc">동영상/클립 목록 전체 페이지 로딩 및 최신순·과거순·인기순 정렬 추가, HLS/fMP4 초기화 세그먼트 병합으로 Mac 재생 호환성 개선</div>
+            </li>
             <li class="history-item">
               <div class="version">v2.2.2</div>
               <div class="desc">라이브 방송 URL에서는 다운로드 아이콘과 패널을 표시하지 않고, 동영상(VOD) 및 클립 탭에서만 다운로드 UI가 나타나도록 개선</div>

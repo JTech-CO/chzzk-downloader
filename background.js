@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.1 - Background Script (MP4, HLS, DASH, OPFS streaming)
+// Chzzk Downloader v2.2.3 - Background Script (MP4, HLS, DASH, OPFS streaming)
 const active = new Map();
 
 // 동적 우회 규칙 설정 (백그라운드 통신에만 국한시켜 content.js CORS 방해 원천 차단)
@@ -91,13 +91,19 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
 
 // 세그먼트 1개 fetch — 일시적 실패(429/5xx/네트워크 블립)는 백오프 재시도.
 // 수만 개 세그먼트 다운로드에서 1개 실패로 전체가 죽지 않도록 하는 안전장치.
-async function fetchSeg(url, signal, creds, attempts = 4) {
+async function fetchSeg(segment, signal, creds, attempts = 4) {
+  const url = typeof segment === 'string' ? segment : segment?.url;
+  const range = typeof segment === 'string' ? null : segment?.range;
+  if (!url) throw new Error('세그먼트 URL 없음');
+
   let lastErr;
   for (let a = 0; a < attempts; a++) {
     if (signal.aborted) throw new Error('취소됨');
     let r = null;
     try {
-      r = await fetch(url, { signal, credentials: creds });   // 네트워크 오류만 여기서 catch
+      const opt = { signal, credentials: creds };
+      if (range) opt.headers = { Range: `bytes=${range}` };
+      r = await fetch(url, opt);                              // 네트워크 오류만 여기서 catch
     } catch (e) {
       if (signal.aborted || e.name === 'AbortError') throw new Error('취소됨');
       lastErr = e;                                            // 네트워크 블립 → 재시도
@@ -350,9 +356,10 @@ async function hlsDownload(masterText, masterUrl, title, itemId, tabId) {
 
     const media = master.includes('#EXTINF') ? master : await fetch(plUrl, { signal: ac.signal, credentials: creds }).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.text(); });
     dlog(tabId, `variant playlist 확보 +${Date.now() - t0}ms (len=${media.length})`);
-    const segs = media.split('\n').filter(l => l.trim() && !l.trim().startsWith('#')).map(l => resolve(plUrl, l.trim()));
+    const parsed = parseHlsMediaPlaylist(media, plUrl);
+    const segs = parsed.segments;
     if (!segs.length) throw new Error('HLS 세그먼트 없음');
-    dlog(tabId, `세그먼트 파싱 완료 +${Date.now() - t0}ms (${segs.length}개) → 다운로드 시작`);
+    dlog(tabId, `세그먼트 파싱 완료 +${Date.now() - t0}ms (${segs.length}개, init=${parsed.initCount}개) → 다운로드 시작`);
 
     return segmentDownload(segs, title, itemId, tabId, creds);
   } catch (e) {
@@ -361,6 +368,83 @@ async function hlsDownload(masterText, masterUrl, title, itemId, tabId) {
   } finally {
     active.delete(itemId);
   }
+}
+
+function parseHlsMediaPlaylist(text, playlistUrl) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const segments = [];
+  const seenMaps = new Set();
+  const byteRangeEnds = new Map();
+  let pendingByteRange = null;
+  let initCount = 0;
+
+  for (const line of lines) {
+    const upper = line.toUpperCase();
+
+    if (upper.startsWith('#EXT-X-MAP:')) {
+      const attrs = parseHlsAttrs(line);
+      if (!attrs.URI) continue;
+      const entry = makeHlsEntry(resolve(playlistUrl, attrs.URI), attrs.BYTERANGE, byteRangeEnds);
+      const key = hlsEntryKey(entry);
+      if (!seenMaps.has(key)) {
+        segments.push(entry);
+        seenMaps.add(key);
+        initCount++;
+      }
+      continue;
+    }
+
+    if (upper.startsWith('#EXT-X-BYTERANGE:')) {
+      pendingByteRange = line.slice(line.indexOf(':') + 1).trim();
+      continue;
+    }
+
+    if (line.startsWith('#')) continue;
+
+    const url = resolve(playlistUrl, line);
+    segments.push(makeHlsEntry(url, pendingByteRange, byteRangeEnds));
+    pendingByteRange = null;
+  }
+
+  return { segments, initCount };
+}
+
+function parseHlsAttrs(line) {
+  const body = line.includes(':') ? line.slice(line.indexOf(':') + 1) : line;
+  const attrs = {};
+  body.replace(/([A-Z0-9-]+)=("[^"]*"|[^,]*)/gi, (_, key, value) => {
+    attrs[key.toUpperCase()] = value.startsWith('"') && value.endsWith('"')
+      ? value.slice(1, -1)
+      : value;
+    return '';
+  });
+  return attrs;
+}
+
+function makeHlsEntry(url, byteRange, byteRangeEnds) {
+  const range = parseHlsByteRange(byteRange, byteRangeEnds.get(url));
+  if (!range) return url;
+  byteRangeEnds.set(url, range.end);
+  return { url, range: range.header };
+}
+
+function parseHlsByteRange(value, previousEnd) {
+  if (!value) return null;
+  const [lenRaw, offsetRaw] = value.split('@');
+  const length = parseInt(lenRaw, 10);
+  if (!Number.isFinite(length) || length <= 0) return null;
+
+  const start = offsetRaw !== undefined
+    ? parseInt(offsetRaw, 10)
+    : Number.isFinite(previousEnd) ? previousEnd + 1 : 0;
+  if (!Number.isFinite(start) || start < 0) return null;
+
+  const end = start + length - 1;
+  return { header: `${start}-${end}`, end };
+}
+
+function hlsEntryKey(entry) {
+  return typeof entry === 'string' ? entry : `${entry.url}#${entry.range || ''}`;
 }
 
 function resolve(base, rel) { if (rel.startsWith('http')) return rel; try { return new URL(rel, base).href; } catch { return base.replace(/[^/]+$/, '') + rel; } }

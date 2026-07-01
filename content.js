@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.2 - Content Script
+// Chzzk Downloader v2.2.3 - Content Script
 
 (function () {
   'use strict';
@@ -26,8 +26,12 @@
     empty: '<svg viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14v-4zM3 6h10a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2z"/></svg>',
   };
 
+  const PAGE_SIZE = 24;
+  const MAX_SCAN_PAGES = 100;
+  const SORT_LABELS = { latest: '최신순', oldest: '과거순', popular: '인기순' };
   let currentSection = null, currentChannelId = null;
   let items = [], panelOpen = false, downloadStates = {}, debugLog = '';
+  let sortMode = 'latest', scanSeq = 0;
   let channelVodType = null;   // 'fast'(정식 VOD) | 'slow'(라이브 다시보기) | 'unknown' | null(미확인)
   let noticeDismissed = false; // 현재 채널에서 안내 배너를 닫았는지
   let noticeExpanded = false;  // 'inKey란?' 설명 펼침 여부
@@ -390,6 +394,11 @@
   panel.innerHTML = `
     <div id="chzzk-dl-body">
       <div class="cdl-header">${ICONS.download}<span class="cdl-header-title">Chzzk Downloader</span><span class="cdl-header-section" id="cdl-section-tag"></span></div>
+      <div class="cdl-toolbar" id="cdl-sort-toolbar">
+        <button class="cdl-sort-btn active" data-sort="latest">최신순</button>
+        <button class="cdl-sort-btn" data-sort="oldest">과거순</button>
+        <button class="cdl-sort-btn" data-sort="popular">인기순</button>
+      </div>
       <div id="cdl-content"></div>
       <div class="cdl-footer" id="cdl-footer" style="display:none">
         <span id="cdl-item-count"></span>
@@ -406,6 +415,23 @@
   document.body.appendChild(panel);
 
   const $ = id => document.getElementById(id);
+  function updateSortButtons() {
+    document.querySelectorAll('#chzzk-dl-panel .cdl-sort-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.sort === sortMode);
+    });
+  }
+
+  document.querySelectorAll('#chzzk-dl-panel .cdl-sort-btn').forEach(btn => {
+    btn.onclick = () => {
+      const next = btn.dataset.sort;
+      if (!SORT_LABELS[next] || next === sortMode) return;
+      sortMode = next;
+      items = sortItems(items);
+      updateSortButtons();
+      render();
+    };
+  });
+
   function setPanelVisible(visible) {
     panel.classList.toggle('cdl-hidden', !visible);
     if (!visible) {
@@ -452,7 +478,9 @@
     if (section !== currentSection || channelId !== currentChannelId) {
       currentSection = section; currentChannelId = channelId;
       items = []; downloadStates = {};
+      sortMode = 'latest'; scanSeq++;
       channelVodType = null; noticeDismissed = false; noticeExpanded = false;
+      updateSortButtons();
       if (section) { $('cdl-section-tag').textContent = section === 'videos' ? 'VOD' : 'CLIP'; setTimeout(scanPage, 800); }
       else { $('cdl-section-tag').textContent = ''; }
       render();
@@ -467,27 +495,130 @@
   // Scanner
   async function scanPage() {
     if (!currentSection || !currentChannelId) return;
+    const scanId = ++scanSeq;
+    const scanSection = currentSection;
+    const scanChannelId = currentChannelId;
+    items = [];
+    render();
+
     try {
-      const p = new URLSearchParams(location.search);
-      if (currentSection === 'videos') {
-        const data = await fetchJson(API.videoList(currentChannelId, Math.max(0, parseInt(p.get('page') || '1') - 1), 24, p.get('sortType') || 'LATEST', p.get('videoType') || ''));
-        const list = data?.content?.data || data?.data || [];
-        log(`[Scan] VOD API ${list.length}개`);
-        items = list.map(v => ({ id: String(v.videoNo), type: 'video', title: v.videoTitle || '', thumbnail: v.thumbnailImageUrl || '', duration: v.duration || 0, views: v.readCount || 0, date: v.publishDate || '' }));
-      } else {
-        const data = await fetchJson(API.clipList(currentChannelId, 0, 24, p.get('orderType') || 'POPULAR', p.get('filterType') || 'ALL'));
-        const list = data?.content?.data || data?.data || [];
-        log(`[Scan] CLIP API ${list.length}개`);
-        items = list.map(c => ({ id: c.clipUID || c.clipId || '', type: 'clip', title: c.clipTitle || '', thumbnail: c.thumbnailImageUrl || '', duration: c.duration || 0, views: c.readCount || 0, date: c.createdDate || '' }));
-      }
+      const fetched = await fetchAllItems(scanSection, scanChannelId);
+      if (scanId !== scanSeq) return;
+      items = sortItems(fetched);
     } catch (e) {
+      if (scanId !== scanSeq) return;
       log(`[Scan] API 실패: ${e.message}`);
     }
+    if (scanId !== scanSeq) return;
     
     // 항상 DOM과 병합하여 무한 스크롤로 추가된 항목도 반영
     scanDom();
     render();
     detectVodType();   // 채널 VOD 유형(빠름/느림) 판별 후 안내 배너 표시
+  }
+
+  async function fetchAllItems(section, channelId) {
+    const p = new URLSearchParams(location.search);
+    const all = [];
+    const seen = new Set();
+    let page = 0;
+
+    while (page < MAX_SCAN_PAGES) {
+      let data;
+      try {
+        data = section === 'videos'
+          ? await fetchJson(API.videoList(channelId, page, PAGE_SIZE, p.get('sortType') || 'LATEST', p.get('videoType') || ''))
+          : await fetchJson(API.clipList(channelId, page, PAGE_SIZE, p.get('orderType') || 'POPULAR', p.get('filterType') || 'ALL'));
+      } catch (e) {
+        if (page === 0) throw e;
+        log(`[Scan] page=${page + 1} 로딩 실패, 이전 ${all.length}개로 표시: ${e.message}`);
+        break;
+      }
+
+      const list = extractList(data);
+      if (!list.length) break;
+
+      let added = 0;
+      for (const raw of list) {
+        const item = section === 'videos' ? mapVideo(raw) : mapClip(raw);
+        if (!item.id || seen.has(item.id)) continue;
+        seen.add(item.id);
+        all.push(item);
+        added++;
+      }
+
+      log(`[Scan] ${section === 'videos' ? 'VOD' : 'CLIP'} API page=${page + 1}, +${added}, total=${all.length}`);
+      if (list.length < PAGE_SIZE || added === 0) break;
+      page++;
+    }
+
+    if (page >= MAX_SCAN_PAGES) log(`[Scan] 최대 ${MAX_SCAN_PAGES}페이지까지 로딩`);
+    return all;
+  }
+
+  function extractList(data) {
+    return data?.content?.data || data?.data || data?.content?.videos || data?.content?.clips || [];
+  }
+
+  function mapVideo(v) {
+    return {
+      id: String(v.videoNo || v.videoId || ''),
+      type: 'video',
+      title: v.videoTitle || v.title || '',
+      thumbnail: v.thumbnailImageUrl || v.thumbnailUrl || '',
+      duration: Number(v.duration || 0),
+      views: Number(v.readCount || v.viewCount || 0),
+      date: v.publishDate || v.createdDate || v.createdAt || '',
+    };
+  }
+
+  function mapClip(c) {
+    return {
+      id: String(c.clipUID || c.clipId || c.clipNo || ''),
+      type: 'clip',
+      title: c.clipTitle || c.title || '',
+      thumbnail: c.thumbnailImageUrl || c.thumbnailUrl || '',
+      duration: Number(c.duration || 0),
+      views: Number(c.readCount || c.viewCount || 0),
+      date: c.createdDate || c.publishDate || c.createdAt || '',
+    };
+  }
+
+  function mergeItems(base, extra) {
+    const map = new Map();
+    for (const item of base) map.set(item.id, item);
+    for (const item of extra) {
+      const prev = map.get(item.id);
+      map.set(item.id, prev ? {
+        ...prev,
+        title: prev.title || item.title,
+        thumbnail: prev.thumbnail || item.thumbnail,
+        duration: prev.duration || item.duration,
+        views: prev.views || item.views,
+        date: prev.date || item.date,
+      } : item);
+    }
+    return Array.from(map.values());
+  }
+
+  function sortItems(list) {
+    const dir = sortMode === 'oldest' ? 1 : -1;
+    return [...list].sort((a, b) => {
+      if (sortMode === 'popular') {
+        const views = (b.views || 0) - (a.views || 0);
+        if (views) return views;
+        return dateValue(b.date) - dateValue(a.date);
+      }
+
+      const date = (dateValue(a.date) - dateValue(b.date)) * dir;
+      if (date) return date;
+      return String(a.id).localeCompare(String(b.id)) * dir;
+    });
+  }
+
+  function dateValue(d) {
+    const t = Date.parse(d || '');
+    return Number.isFinite(t) ? t : 0;
   }
 
   function scanDom() {
@@ -522,8 +653,9 @@
     });
     
     if (found.length > 0) {
-      items = found;
-      log(`[Scan] DOM 스캔 완료: 총 ${items.length}개 발견`);
+      const before = items.length;
+      items = sortItems(mergeItems(items, found));
+      log(`[Scan] DOM 스캔 완료: ${found.length}개 확인, +${items.length - before}개 추가`);
     }
   }
 
@@ -567,10 +699,11 @@
 
   // ---- Render ----
   function render() {
+    updateSortButtons();
     const badge = $('chzzk-dl-badge');
     badge.textContent = items.length; badge.classList.toggle('visible', items.length > 0);
     $('cdl-footer').style.display = items.length > 0 ? 'flex' : 'none';
-    $('cdl-item-count').textContent = `${items.length}개 항목`;
+    $('cdl-item-count').textContent = `${items.length}개 항목 · ${SORT_LABELS[sortMode]}`;
 
     const content = $('cdl-content');
     if (!currentSection) {
