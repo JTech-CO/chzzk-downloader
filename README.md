@@ -134,6 +134,6 @@ chzzk-downloader/
 - **Notice**:
   - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
   - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.
-  - v2.2.4부터 호스트 권한과 백그라운드 헤더 변경 범위를 Chzzk/Naver/Pstatic 계열 요청으로 제한합니다.
+  - `v2.2.4`부터 호스트 권한과 백그라운드 헤더 변경 범위를 Chzzk/Naver/Pstatic 계열 요청으로 제한합니다.
   - 사용자 본인의 VOD 백업 목적으로만 활용하십시오.
 - **Privacy Policy**: [개인정보 처리방침 안내](<https://jtech-co.github.io/chzzk-downloader/privacy-policy.html>)
