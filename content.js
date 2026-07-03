@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.3 - Content Script
+// Chzzk Downloader v2.2.4 - Content Script
 
 (function () {
   'use strict';
@@ -31,7 +31,7 @@
   const SORT_LABELS = { latest: '최신순', oldest: '과거순', popular: '인기순' };
   let currentSection = null, currentChannelId = null;
   let items = [], panelOpen = false, downloadStates = {}, debugLog = '';
-  let sortMode = 'latest', scanSeq = 0;
+  let sortMode = 'latest', scanSeq = 0, scanAbort = null;
   let channelVodType = null;   // 'fast'(정식 VOD) | 'slow'(라이브 다시보기) | 'unknown' | null(미확인)
   let noticeDismissed = false; // 현재 채널에서 안내 배너를 닫았는지
   let noticeExpanded = false;  // 'inKey란?' 설명 펼침 여부
@@ -44,8 +44,8 @@
     if (el) el.textContent = debugLog;
   }
 
-  async function fetchJson(url) {
-    const r = await fetch(url, { credentials: 'include' });
+  async function fetchJson(url, signal) {
+    const r = await fetch(url, { credentials: 'include', signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   }
@@ -461,14 +461,12 @@
 
   // SPA URL Monitoring
   function parseUrl() {
-    if (location.href.toLowerCase().includes('live')) return { section: null, channelId: null };
-
     const p = location.pathname;
-    const v = p.match(/^\/([a-f0-9]{32})\/videos/);
-    const c = p.match(/^\/([a-f0-9]{32})\/clips/);
-    return v ? { section: 'videos', channelId: v[1] }
-      : c ? { section: 'clips', channelId: c[1] }
-        : { section: null, channelId: null };
+    const live = p.match(/^\/([a-f0-9]{32})\/live(?:\/|$)/);
+    if (live) return { section: null, channelId: null };
+
+    const m = p.match(/^\/([a-f0-9]{32})\/(videos|clips)(?:\/|$)/);
+    return m ? { section: m[2], channelId: m[1] } : { section: null, channelId: null };
   }
 
   function checkUrl() {
@@ -479,6 +477,7 @@
       currentSection = section; currentChannelId = channelId;
       items = []; downloadStates = {};
       sortMode = 'latest'; scanSeq++;
+      if (scanAbort) { scanAbort.abort(); scanAbort = null; }
       channelVodType = null; noticeDismissed = false; noticeExpanded = false;
       updateSortButtons();
       if (section) { $('cdl-section-tag').textContent = section === 'videos' ? 'VOD' : 'CLIP'; setTimeout(scanPage, 800); }
@@ -498,16 +497,22 @@
     const scanId = ++scanSeq;
     const scanSection = currentSection;
     const scanChannelId = currentChannelId;
+    if (scanAbort) scanAbort.abort();
+    scanAbort = new AbortController();
+    const signal = scanAbort.signal;
     items = [];
     render();
 
     try {
-      const fetched = await fetchAllItems(scanSection, scanChannelId);
+      const fetched = await fetchAllItems(scanSection, scanChannelId, signal);
       if (scanId !== scanSeq) return;
       items = sortItems(fetched);
     } catch (e) {
       if (scanId !== scanSeq) return;
+      if (e.name === 'AbortError') return;
       log(`[Scan] API 실패: ${e.message}`);
+    } finally {
+      if (scanAbort?.signal === signal) scanAbort = null;
     }
     if (scanId !== scanSeq) return;
     
@@ -517,18 +522,19 @@
     detectVodType();   // 채널 VOD 유형(빠름/느림) 판별 후 안내 배너 표시
   }
 
-  async function fetchAllItems(section, channelId) {
+  async function fetchAllItems(section, channelId, signal) {
     const p = new URLSearchParams(location.search);
     const all = [];
     const seen = new Set();
     let page = 0;
 
     while (page < MAX_SCAN_PAGES) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       let data;
       try {
         data = section === 'videos'
-          ? await fetchJson(API.videoList(channelId, page, PAGE_SIZE, p.get('sortType') || 'LATEST', p.get('videoType') || ''))
-          : await fetchJson(API.clipList(channelId, page, PAGE_SIZE, p.get('orderType') || 'POPULAR', p.get('filterType') || 'ALL'));
+          ? await fetchJson(API.videoList(channelId, page, PAGE_SIZE, p.get('sortType') || 'LATEST', p.get('videoType') || ''), signal)
+          : await fetchJson(API.clipList(channelId, page, PAGE_SIZE, p.get('orderType') || 'POPULAR', p.get('filterType') || 'ALL'), signal);
       } catch (e) {
         if (page === 0) throw e;
         log(`[Scan] page=${page + 1} 로딩 실패, 이전 ${all.length}개로 표시: ${e.message}`);

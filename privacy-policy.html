@@ -6,8 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chzzk Downloader 개인정보 처리방침</title>
   <style>
-    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-
     :root {
       --bg: #1a1b1e;
       --bg2: #26272b;
@@ -21,7 +19,7 @@
     }
 
     body {
-      font-family: 'Pretendard', -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       background-color: var(--bg);
       color: var(--tx);
       line-height: 1.6;
@@ -263,7 +261,7 @@
         </svg>
       </div>
       <h1>Chzzk Downloader 개인정보 처리방침</h1>
-      <div class="last-updated">최종 업데이트: 2026년 7월 1일</div>
+      <div class="last-updated">최종 업데이트: 2026년 7월 3일</div>
     </div>
 
     <div class="layout-grid">
@@ -285,9 +283,9 @@
               표시하기 위해 사용됩니다. 라이브 방송 페이지에서는 UI를 숨겨 채팅창을 방해하지 않습니다.</li>
             <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트와 MP4 초기화 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
             </li>
-            <li><strong>declarativeNetRequest</strong>: 네이버 CDN의 외부 접근(핫링킹) 차단을 우회하기 위해, 백그라운드 다운로드 요청의 출처(Referer/Origin) 헤더를 치지직 웹사이트로 설정하는 용도로만 사용됩니다. 다운로드 외의 웹 요청은 가로채거나 수정하지 않습니다.</li>
+            <li><strong>declarativeNetRequest</strong>: 네이버 CDN의 외부 접근(핫링킹) 차단을 우회하기 위해, 백그라운드 다운로드 요청의 출처(Referer/Origin) 헤더를 치지직 웹사이트로 설정하는 용도로만 사용됩니다. 이 규칙은 Naver/Pstatic 요청으로 제한되며, 다운로드 외의 웹 요청은 가로채거나 수정하지 않습니다.</li>
             <li><strong>offscreen</strong>: 일부 브라우저 환경에서 완성된 영상 파일을 저장할 때 필요한 임시 다운로드 주소(blob URL)를 생성하기 위해 화면에 보이지 않는 문서를 사용합니다. 영상 저장 외의 작업은 수행하지 않습니다.</li>
-            <li><strong>호스트 권한 (*.naver.com 등)</strong>: 동영상/클립 목록과 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 목록이 여러 페이지로 나뉜 경우에도 같은 목적 범위 안에서 순차적으로 조회합니다. 정상적인 화질 제공을 위해 로그인된
+            <li><strong>호스트 권한 (chzzk.naver.com, *.naver.com, *.pstatic.net)</strong>: 동영상/클립 목록과 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 목록이 여러 페이지로 나뉜 경우에도 같은 목적 범위 안에서 순차적으로 조회합니다. 정상적인 화질 제공을 위해 로그인된
               사용자의 세션을 통해 우회 없이 직접 다운로드되며, 이러한 데이터 통신은 사용자의 브라우저 내에서만 이루어지고 외부 서버로 어떠한 데이터도 전송되지 않습니다.</li>
           </ul>
         </div>
@@ -310,6 +308,10 @@
         <div class="content-box">
           <h2>업데이트 내역</h2>
           <ul class="history-list">
+            <li class="history-item">
+              <div class="version">v2.2.4</div>
+              <div class="desc">장시간 VOD 다운로드 안전성 강화, 메시지/URL 검증 추가, 호스트 권한 및 헤더 변경 범위 Naver/Pstatic으로 제한, 외부 폰트 요청 제거, 배포 패키지 구성 고정</div>
+            </li>
             <li class="history-item">
               <div class="version">v2.2.3</div>
               <div class="desc">동영상/클립 목록 전체 페이지 로딩 및 최신순·과거순·인기순 정렬 추가, HLS/fMP4 초기화 세그먼트 병합으로 Mac 재생 호환성 개선</div>

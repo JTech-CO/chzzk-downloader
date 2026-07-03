@@ -1,10 +1,10 @@
-// Chzzk Downloader v2.2.3 - Background Script (MP4, HLS, DASH, OPFS streaming)
+// Chzzk Downloader v2.2.4 - Background Script (MP4, HLS, DASH, OPFS streaming)
 const active = new Map();
 
-// 동적 우회 규칙 설정 (백그라운드 통신에만 국한시켜 content.js CORS 방해 원천 차단)
-chrome.runtime.onInstalled.addListener(() => {
+// 동적 우회 규칙 설정 (백그라운드 통신 중 Naver/Pstatic 요청에만 국한)
+function installHeaderRules() {
   chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [1],
+    removeRuleIds: [1, 2],
     addRules: [
       {
         id: 1,
@@ -17,43 +17,167 @@ chrome.runtime.onInstalled.addListener(() => {
           ]
         },
         condition: {
-          initiatorDomains: [chrome.runtime.id]
+          initiatorDomains: [chrome.runtime.id],
+          urlFilter: '||naver.com/',
+          resourceTypes: ['xmlhttprequest']
+        }
+      },
+      {
+        id: 2,
+        priority: 1,
+        action: {
+          type: 'modifyHeaders',
+          requestHeaders: [
+            { header: 'Referer', operation: 'set', value: 'https://chzzk.naver.com/' },
+            { header: 'Origin', operation: 'set', value: 'https://chzzk.naver.com' }
+          ]
+        },
+        condition: {
+          initiatorDomains: [chrome.runtime.id],
+          urlFilter: '||pstatic.net/',
+          resourceTypes: ['xmlhttprequest']
         }
       }
     ]
   });
-});
+}
+
+chrome.runtime.onInstalled.addListener(installHeaderRules);
+installHeaderRules();
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || typeof msg.type !== 'string') return false;
+
+  if (!isTrustedContentSender(sender)) {
+    sendResponse({ error: '허용되지 않은 메시지 발신자입니다.' });
+    return false;
+  }
+
   const tabId = sender.tab?.id;
 
   if (msg.type === 'DOWNLOAD_DIRECT') {
-    const fn = sanitize(msg.filename) + (msg.ext || '.mp4');
-    chrome.downloads.download({ url: msg.url, filename: fn }, id => {
+    let payload;
+    try { payload = validateDirectMessage(msg); } catch (e) { sendResponse({ error: e.message }); return false; }
+    const fn = sanitize(payload.filename) + '.mp4';
+    chrome.downloads.download({ url: payload.url, filename: fn }, id => {
       sendResponse(chrome.runtime.lastError ? { error: chrome.runtime.lastError.message } : { status: 'started', downloadId: id });
     });
     return true;
   }
 
   if (msg.type === 'DOWNLOAD_HLS') {
-    hlsDownload(msg.masterText, msg.hlsUrl, msg.title, msg.itemId, tabId).then(sendResponse).catch(e => sendResponse({ error: e.message }));
+    let payload;
+    try { payload = validateHlsMessage(msg); } catch (e) { sendResponse({ error: e.message }); return false; }
+    hlsDownload(payload.masterText, payload.hlsUrl, payload.title, payload.itemId, tabId).then(sendResponse).catch(e => sendResponse({ error: e.message }));
     return true;
   }
 
   if (msg.type === 'DOWNLOAD_SEGMENTS') {
-    segmentDownload(msg.segments, msg.title, msg.itemId, tabId).then(sendResponse).catch(e => sendResponse({ error: e.message }));
+    let payload;
+    try { payload = validateSegmentsMessage(msg); } catch (e) { sendResponse({ error: e.message }); return false; }
+    segmentDownload(payload.segments, payload.title, payload.itemId, tabId).then(sendResponse).catch(e => sendResponse({ error: e.message }));
     return true;
   }
 
   if (msg.type === 'CANCEL_DOWNLOAD') {
-    const c = active.get(msg.itemId); if (c) c.abort(); active.delete(msg.itemId);
+    const itemId = normalizeItemId(msg.itemId);
+    const c = active.get(itemId); if (c) c.abort(); active.delete(itemId);
     sendResponse({ ok: true });
+    return false;
   }
+
+  sendResponse({ error: '알 수 없는 메시지 타입입니다.' });
+  return false;
 });
 
 const CONCURRENT = 8;            // 동시 워커 수. CDN이 클라이언트당 ~5 req/s로 제한 → 더 올려도 무의미(측정 확인),
                                 //  과도하면 연결 거부. 8이면 레이트 캡을 채우고도 남음.
 const STREAM_THRESHOLD = 800;   // 세그먼트가 이 개수를 넘으면 OPFS 디스크 스트리밍(메모리 폭증 방지)
+const MAX_SEGMENT_BYTES = 256 * 1024 * 1024; // Range 무시/전체 파일 응답으로 인한 과도한 메모리 사용 방지
+const MAX_SEGMENT_COUNT = 120000; // 10~12시간 장시간 VOD는 허용하되 비정상 메시지는 차단
+const MAX_PLAYLIST_TEXT = 20 * 1024 * 1024;
+
+function isTrustedContentSender(sender) {
+  if (sender?.id !== chrome.runtime.id) return false;
+  try {
+    const u = new URL(sender.tab?.url || '');
+    return u.origin === 'https://chzzk.naver.com';
+  } catch (_) {
+    return false;
+  }
+}
+
+function validateDirectMessage(msg) {
+  return {
+    url: assertSafeHttpsUrl(msg.url, '다운로드 URL'),
+    filename: typeof msg.filename === 'string' ? msg.filename : 'chzzk',
+  };
+}
+
+function validateHlsMessage(msg) {
+  const masterText = msg.masterText == null ? null : String(msg.masterText);
+  if (masterText && masterText.length > MAX_PLAYLIST_TEXT) throw new Error('HLS 플레이리스트가 비정상적으로 큽니다.');
+  return {
+    hlsUrl: assertSafeHttpsUrl(msg.hlsUrl, 'HLS URL'),
+    masterText,
+    title: typeof msg.title === 'string' ? msg.title : 'chzzk',
+    itemId: normalizeItemId(msg.itemId),
+  };
+}
+
+function validateSegmentsMessage(msg) {
+  if (!Array.isArray(msg.segments) || msg.segments.length === 0) throw new Error('세그먼트 목록이 없습니다.');
+  if (msg.segments.length > MAX_SEGMENT_COUNT) throw new Error('세그먼트 수가 비정상적으로 많습니다.');
+  return {
+    segments: msg.segments.map(normalizeSegment),
+    title: typeof msg.title === 'string' ? msg.title : 'chzzk',
+    itemId: normalizeItemId(msg.itemId),
+  };
+}
+
+function normalizeSegment(seg) {
+  if (typeof seg === 'string') return assertSafeHttpsUrl(seg, '세그먼트 URL');
+  if (!seg || typeof seg !== 'object') throw new Error('세그먼트 형식이 올바르지 않습니다.');
+  const url = assertSafeHttpsUrl(seg.url, '세그먼트 URL');
+  const range = seg.range == null ? null : String(seg.range);
+  if (range && !/^\d+-\d+$/.test(range)) throw new Error('세그먼트 Range 형식이 올바르지 않습니다.');
+  return range ? { url, range } : url;
+}
+
+function normalizeItemId(value) {
+  return String(value || 'chzzk').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'chzzk';
+}
+
+function assertSafeHttpsUrl(value, label) {
+  let u;
+  try {
+    u = new URL(String(value || ''));
+  } catch (_) {
+    throw new Error(`${label} 형식이 올바르지 않습니다.`);
+  }
+
+  if (u.protocol !== 'https:') throw new Error(`${label}은 HTTPS만 허용됩니다.`);
+  if (isPrivateHost(u.hostname)) throw new Error(`${label}에 로컬/사설망 주소는 허용되지 않습니다.`);
+  if (!isAllowedMediaHost(u.hostname)) throw new Error(`${label}은 Naver/Pstatic 도메인만 허용됩니다.`);
+  u.username = '';
+  u.password = '';
+  return u.href;
+}
+
+function isAllowedMediaHost(hostname) {
+  const h = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return h === 'naver.com' || h.endsWith('.naver.com') || h === 'pstatic.net' || h.endsWith('.pstatic.net');
+}
+
+function isPrivateHost(hostname) {
+  const h = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h || h === 'localhost' || h.endsWith('.local')) return true;
+  if (h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true;
+  const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (!m) return false;
+  const a = Number(m[1]), b = Number(m[2]);
+  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+}
 
 function opfsAvailable() {
   return typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.getDirectory === 'function';
@@ -63,19 +187,25 @@ function opfsAvailable() {
 // - 큰 영상(> STREAM_THRESHOLD) + OPFS 지원: 디스크 스트리밍(메모리 고정)
 // - 그 외: 기존 검증된 메모리 경로
 // creds: DASH(클립)는 'include'(기존), 라이브 다시보기 HLS는 'omit'(URL 토큰 인증)
-async function segmentDownload(segments, title, itemId, tabId, creds = 'include') {
-  const ac = new AbortController();
+async function segmentDownload(segments, title, itemId, tabId, creds = 'include', existingController = null) {
+  itemId = normalizeItemId(itemId);
+  if (!existingController && active.has(itemId)) throw new Error('이미 진행 중인 다운로드입니다.');
+
+  const ac = existingController || new AbortController();
   active.set(itemId, ac);
   try {
     if (!segments || segments.length === 0) throw new Error('세그먼트 없음');
+    validateSegmentPlan(segments);
 
-    if (segments.length > STREAM_THRESHOLD && opfsAvailable()) {
+    if (segments.length > STREAM_THRESHOLD) {
+      if (!opfsAvailable()) {
+        throw new Error('대용량 영상은 안전한 디스크 스트리밍(OPFS)이 필요합니다. 브라우저를 최신 버전으로 업데이트해 주세요.');
+      }
       let stream = null;
       try {
         stream = await openOpfsStream(itemId);          // OPFS 준비(setup) 단계
       } catch (e) {
-        // setup 실패(미지원/쿼터 등)일 때만 메모리로 폴백 — 이 시점엔 받은 게 없어 재다운로드 안전
-        prog(tabId, itemId, 'info', '디스크 스트리밍 불가, 메모리 모드로 진행...');
+        throw new Error('대용량 영상 임시 저장소를 준비하지 못했습니다: ' + e.message);
       }
       if (stream) return await downloadStreaming(segments, title, itemId, tabId, creds, ac, stream);
     }
@@ -85,7 +215,7 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
     prog(tabId, itemId, 'error', e.message);
     throw e;
   } finally {
-    active.delete(itemId);
+    if (active.get(itemId) === ac) active.delete(itemId);
   }
 }
 
@@ -94,6 +224,7 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
 async function fetchSeg(segment, signal, creds, attempts = 4) {
   const url = typeof segment === 'string' ? segment : segment?.url;
   const range = typeof segment === 'string' ? null : segment?.range;
+  const expectedRangeBytes = range ? rangeLength(range) : null;
   if (!url) throw new Error('세그먼트 URL 없음');
 
   let lastErr;
@@ -109,7 +240,19 @@ async function fetchSeg(segment, signal, creds, attempts = 4) {
       lastErr = e;                                            // 네트워크 블립 → 재시도
     }
     if (r) {
-      if (r.ok) return await r.arrayBuffer();
+      if (range && r.status !== 206) {
+        throw new Error(`Range 응답 오류: HTTP ${r.status}. 전체 파일 응답 가능성이 있어 중단 (${url.slice(-30)})`);
+      }
+      const len = parseInt(r.headers.get('content-length') || '0', 10);
+      if (Number.isFinite(len) && len > 0) {
+        if (expectedRangeBytes && len > expectedRangeBytes + 1024) {
+          throw new Error(`Range 크기 불일치: ${len}B > ${expectedRangeBytes}B (${url.slice(-30)})`);
+        }
+        if (len > MAX_SEGMENT_BYTES) {
+          throw new Error(`세그먼트 크기 비정상: ${(len / 1024 / 1024).toFixed(1)}MB (${url.slice(-30)})`);
+        }
+      }
+      if (r.ok) return await readResponseBuffer(r, expectedRangeBytes);
       // 영구 오류(429/5xx 제외)는 try 밖이라 즉시 전파 — 재시도 안 함
       if (r.status !== 429 && r.status < 500) throw new Error(`HTTP ${r.status} ${url.slice(-30)}`);
       lastErr = new Error(`HTTP ${r.status}`);                // 429/5xx → 재시도
@@ -117,6 +260,72 @@ async function fetchSeg(segment, signal, creds, attempts = 4) {
     if (a < attempts - 1) await new Promise(res => setTimeout(res, 500 * (a + 1))); // 0.5s,1s,1.5s 백오프
   }
   throw new Error(`세그먼트 ${attempts}회 실패: ${lastErr?.message || ''} ${url.slice(-30)}`);
+}
+
+function rangeLength(range) {
+  const m = String(range || '').match(/^(\d+)-(\d+)$/);
+  if (!m) return null;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return end - start + 1;
+}
+
+async function readResponseBuffer(response, expectedBytes) {
+  const maxBytes = expectedBytes ? expectedBytes + 1024 : MAX_SEGMENT_BYTES;
+
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    const buf = await response.arrayBuffer();
+    assertBufferSize(buf.byteLength, expectedBytes, maxBytes);
+    return buf;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      try { await reader.cancel(); } catch (_) {}
+      throw new Error(`응답 크기 제한 초과: ${(total / 1024 / 1024).toFixed(1)}MB`);
+    }
+    chunks.push(value);
+  }
+
+  assertBufferSize(total, expectedBytes, maxBytes);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out.buffer;
+}
+
+function assertBufferSize(actualBytes, expectedBytes, maxBytes) {
+  if (actualBytes > maxBytes) {
+    throw new Error(`응답 크기 제한 초과: ${(actualBytes / 1024 / 1024).toFixed(1)}MB`);
+  }
+  if (expectedBytes && actualBytes !== expectedBytes) {
+    throw new Error(`Range 크기 불일치: ${actualBytes}B != ${expectedBytes}B`);
+  }
+}
+
+function validateSegmentPlan(segments) {
+  const fullUrlCounts = new Map();
+  for (const seg of segments) {
+    const url = typeof seg === 'string' ? seg : seg?.url;
+    const range = typeof seg === 'string' ? null : seg?.range;
+    if (!url || range) continue;
+    const count = (fullUrlCounts.get(url) || 0) + 1;
+    fullUrlCounts.set(url, count);
+    if (count > 3 && segments.length > 10) {
+      throw new Error('동일한 비-Range 세그먼트 URL이 반복되어 전체 파일 중복 다운로드 위험이 있어 중단했습니다.');
+    }
+  }
 }
 
 // 공통 워커 풀 (슬라이딩 윈도우: 배치 배리어 없이 항상 CONCURRENT개 유지)
@@ -182,7 +391,7 @@ async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stre
   const { root, name, fh, writable } = stream;
   const total = segments.length;
   const step = Math.max(1, Math.floor(total / 200));
-  const MAX_AHEAD = 32;                                // 기록 프런티어보다 최대 32개까지만 선행 → 메모리 ~64MB
+  const MAX_AHEAD = 12;                                // 기록 프런티어보다 최대 12개까지만 선행 → Windows 장시간 VOD 메모리 압박 완화
   const buffer = new Map();                            // index -> ArrayBuffer (다운로드 완료, 기록 대기)
   const waiters = [];
   const t0 = Date.now();
@@ -324,6 +533,8 @@ function offscreenRevokeUrl(url) {
 
 // HLS Parser & Download
 async function hlsDownload(masterText, masterUrl, title, itemId, tabId) {
+  itemId = normalizeItemId(itemId);
+  if (active.has(itemId)) throw new Error('이미 진행 중인 다운로드입니다.');
   const ac = new AbortController();
   active.set(itemId, ac);
   // 라이브 다시보기 HLS는 URL의 hdnts/hdntl 토큰으로 인증된다. 쿠키가 필요 없을 뿐 아니라,
@@ -361,12 +572,12 @@ async function hlsDownload(masterText, masterUrl, title, itemId, tabId) {
     if (!segs.length) throw new Error('HLS 세그먼트 없음');
     dlog(tabId, `세그먼트 파싱 완료 +${Date.now() - t0}ms (${segs.length}개, init=${parsed.initCount}개) → 다운로드 시작`);
 
-    return segmentDownload(segs, title, itemId, tabId, creds);
+    return segmentDownload(segs, title, itemId, tabId, creds, ac);
   } catch (e) {
     prog(tabId, itemId, 'error', e.message);
     throw e;
   } finally {
-    active.delete(itemId);
+    if (active.get(itemId) === ac) active.delete(itemId);
   }
 }
 
