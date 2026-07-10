@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Chzzk Downloader",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "description": "치지직(Chzzk) 스트리머·편집자를 위한 클립/VOD 로컬 백업 도구",
   "permissions": [
     "activeTab",
@@ -12,7 +12,9 @@
   "host_permissions": [
     "https://chzzk.naver.com/*",
     "https://*.naver.com/*",
-    "https://*.pstatic.net/*"
+    "https://*.pstatic.net/*",
+    "https://light-slit.akamaized.net/*",
+    "https://ex-nlive-slitvod-streaming.navercdn.com/*"
   ],
   "background": {
     "service_worker": "background.js"

@@ -261,7 +261,7 @@
         </svg>
       </div>
       <h1>Chzzk Downloader 개인정보 처리방침</h1>
-      <div class="last-updated">최종 업데이트: 2026년 7월 3일</div>
+      <div class="last-updated">최종 업데이트: 2026년 7월 10일</div>
     </div>
 
     <div class="layout-grid">
@@ -281,19 +281,17 @@
           <ul class="default-list">
             <li><strong>activeTab</strong>: 현재 활성화된 탭이 치지직(chzzk.naver.com) 사이트의 동영상/클립 URL인지 확인하고, 지원되는 화면에서만 우측 하단 다운로드 사용자 인터페이스(패널)를
               표시하기 위해 사용됩니다. 라이브 방송 페이지에서는 UI를 숨겨 채팅창을 방해하지 않습니다.</li>
-            <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트와 MP4 초기화 세그먼트를 병합하여 완성된 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
+            <li><strong>downloads</strong>: 백그라운드 환경에서 다운로드된 동영상/클립 세그먼트와 MP4 초기화 세그먼트를 병합하고, 재생시간 및 탐색 메타데이터를 완성한 MP4 파일을 사용자의 로컬 디바이스에 저장하기 위해 사용됩니다.
             </li>
             <li><strong>declarativeNetRequest</strong>: 네이버 CDN의 외부 접근(핫링킹) 차단을 우회하기 위해, 백그라운드 다운로드 요청의 출처(Referer/Origin) 헤더를 치지직 웹사이트로 설정하는 용도로만 사용됩니다. 이 규칙은 Naver/Pstatic 요청으로 제한되며, 다운로드 외의 웹 요청은 가로채거나 수정하지 않습니다.</li>
             <li><strong>offscreen</strong>: 일부 브라우저 환경에서 완성된 영상 파일을 저장할 때 필요한 임시 다운로드 주소(blob URL)를 생성하기 위해 화면에 보이지 않는 문서를 사용합니다. 영상 저장 외의 작업은 수행하지 않습니다.</li>
-            <li><strong>호스트 권한 (chzzk.naver.com, *.naver.com, *.pstatic.net)</strong>: 동영상/클립 목록과 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 목록이 여러 페이지로 나뉜 경우에도 같은 목적 범위 안에서 순차적으로 조회합니다. 정상적인 화질 제공을 위해 로그인된
-              사용자의 세션을 통해 우회 없이 직접 다운로드되며, 이러한 데이터 통신은 사용자의 브라우저 내에서만 이루어지고 외부 서버로 어떠한 데이터도 전송되지 않습니다.</li>
+            <li><strong>호스트 권한 (chzzk.naver.com, *.naver.com, *.pstatic.net, light-slit.akamaized.net, ex-nlive-slitvod-streaming.navercdn.com)</strong>: 동영상/클립 목록, 재생 정보 및 실제 스트리밍 데이터를 가져오기 위한 API 호출 목적으로 필요합니다. 뒤의 두 호스트는 치지직 공식 API가 일부 라이브 다시보기 HLS를 전달할 때 지정하는 CDN이며, 확장 프로그램 코드는 해당 호스트의 <strong>/chzzk/</strong> 경로만 허용합니다. 목록이 여러 페이지로 나뉜 경우에도 같은 목적 범위 안에서 순차적으로 조회하며, 통신과 병합은 사용자의 브라우저에서 직접 수행됩니다.</li>
           </ul>
         </div>
 
         <div class="content-box">
           <h2>3. 제3자 데이터 제공</h2>
-          <p>수집하는 데이터가 원천적으로 없으므로 제3자에게 데이터를 제공하거나 공유하는 과정이 존재하지 않습니다. 확장 프로그램의 모든 통신과 다운로드 처리 과정은 사용자와 네이버 서버 간 직접
-            이루어지며, <span class="highlight">제3자 서버를 경유하지 않고 사용자의 로컬 브라우저 내에서 완료</span>됩니다.</p>
+          <p>확장 프로그램 개발자가 수집하는 데이터가 원천적으로 없으므로 개발자 또는 개발자가 운영하는 제3자 서버에 정보를 제공하거나 공유하지 않습니다. 영상 다운로드 시에는 치지직 공식 API가 지정한 네이버 계열 서버 및 미디어 CDN(light-slit.akamaized.net, ex-nlive-slitvod-streaming.navercdn.com)으로 사용자의 브라우저가 직접 요청합니다. 이 과정에서 일반적인 인터넷 통신에 필요한 IP 주소와 요청 정보는 해당 서비스 제공자의 정책에 따라 처리될 수 있지만, <span class="highlight">확장 프로그램 개발자 서버를 거치거나 개발자에게 전송되지 않습니다.</span></p>
         </div>
 
         <div class="content-box">
@@ -308,6 +306,10 @@
         <div class="content-box">
           <h2>업데이트 내역</h2>
           <ul class="history-list">
+            <li class="history-item">
+              <div class="version">v2.2.5</div>
+              <div class="desc">치지직 공식 라이브 다시보기 CDN 두 곳을 /chzzk/ 경로로 제한해 허용, inKey 없는 HLS/fMP4의 재생시간·타임라인·64비트 탐색 인덱스를 완성하여 Windows·팟플레이어 호환성 개선</div>
+            </li>
             <li class="history-item">
               <div class="version">v2.2.4</div>
               <div class="desc">장시간 VOD 다운로드 안전성 강화, 메시지/URL 검증 추가, 호스트 권한 및 헤더 변경 범위 Naver/Pstatic으로 제한, 외부 폰트 요청 제거, 배포 패키지 구성 고정</div>
