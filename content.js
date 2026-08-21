@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.5 - Content Script
+// Chzzk Downloader v2.2.6 - Content Script
 
 (function () {
   'use strict';
@@ -770,7 +770,7 @@
 
       if (r.type === 'mp4') {
         downloadStates[id] = { status: 'info', message: 'MP4 다운로드...', percent: 0 }; render();
-        chrome.runtime.sendMessage({ type: 'DOWNLOAD_DIRECT', url: r.url, filename: title || id, ext: '.mp4' }, res => {
+        chrome.runtime.sendMessage({ type: 'DOWNLOAD_DIRECT', url: r.url, filename: title || id, itemId: id, ext: '.mp4' }, res => {
           downloadStates[id] = res?.error ? { status: 'error', message: res.error } : { status: 'done', message: '완료' };
           render();
         });

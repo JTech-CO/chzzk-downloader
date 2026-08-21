@@ -1,4 +1,4 @@
-// Chzzk Downloader v2.2.5 - Background Script (MP4, HLS, DASH, OPFS streaming)
+// Chzzk Downloader v2.2.6 - Background Script (MP4 Range, HLS, DASH, OPFS streaming)
 const active = new Map();
 
 // 동적 우회 규칙 설정 (백그라운드 통신 중 Naver/Pstatic 요청에만 국한)
@@ -58,10 +58,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'DOWNLOAD_DIRECT') {
     let payload;
     try { payload = validateDirectMessage(msg); } catch (e) { sendResponse({ error: e.message }); return false; }
-    const fn = sanitize(payload.filename) + '.mp4';
-    chrome.downloads.download({ url: payload.url, filename: fn }, id => {
-      sendResponse(chrome.runtime.lastError ? { error: chrome.runtime.lastError.message } : { status: 'started', downloadId: id });
-    });
+    directDownload(payload.url, payload.filename, payload.itemId, tabId).then(sendResponse).catch(e => sendResponse({ error: e.message }));
     return true;
   }
 
@@ -96,6 +93,9 @@ const STREAM_THRESHOLD = 800;   // 세그먼트가 이 개수를 넘으면 OPFS 
 const MAX_SEGMENT_BYTES = 256 * 1024 * 1024; // Range 무시/전체 파일 응답으로 인한 과도한 메모리 사용 방지
 const MAX_SEGMENT_COUNT = 120000; // 10~12시간 장시간 VOD는 허용하되 비정상 메시지는 차단
 const MAX_PLAYLIST_TEXT = 20 * 1024 * 1024;
+const DIRECT_RANGE_CHUNK_BYTES = 16 * 1024 * 1024;
+const DIRECT_RANGE_MIN_BYTES = 256 * 1024 * 1024;
+const DIRECT_RANGE_CONCURRENT = 8;
 const CHZZK_HLS_CDN_HOSTS = new Set([
   'light-slit.akamaized.net',
   'ex-nlive-slitvod-streaming.navercdn.com',
@@ -115,6 +115,7 @@ function validateDirectMessage(msg) {
   return {
     url: assertSafeHttpsUrl(msg.url, '다운로드 URL'),
     filename: typeof msg.filename === 'string' ? msg.filename : 'chzzk',
+    itemId: normalizeItemId(msg.itemId),
   };
 }
 
@@ -193,13 +194,156 @@ function opfsAvailable() {
   return typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.getDirectory === 'function';
 }
 
+// 큰 직접 MP4는 원본 바이트를 병렬 Range로 받아 OPFS에 순서대로 기록한다.
+// Range 미지원, 소용량, OPFS 미지원 환경은 브라우저의 기존 단일 다운로드로 복귀한다.
+async function directDownload(url, title, itemId, tabId) {
+  itemId = normalizeItemId(itemId);
+  if (active.has(itemId)) throw new Error('이미 진행 중인 다운로드입니다.');
+
+  const ac = new AbortController();
+  active.set(itemId, ac);
+  try {
+    prog(tabId, itemId, 'downloading', '병렬 다운로드 지원 여부 확인 중...', 0);
+
+    let probe;
+    try {
+      probe = await probeDirectRange(url, ac.signal);
+    } catch (e) {
+      if (ac.signal.aborted || e.name === 'AbortError' || e.message === '취소됨') throw new Error('취소됨');
+      dlog(tabId, `[range] 사전 확인 실패, 기존 방식 사용: ${e.message}`);
+      return await startNativeDirectDownload(url, title, itemId, tabId);
+    }
+
+    if (!probe.supported) {
+      dlog(tabId, `[range] 미지원, 기존 방식 사용: ${probe.reason}`);
+      return await startNativeDirectDownload(probe.url || url, title, itemId, tabId);
+    }
+    if (probe.totalBytes < DIRECT_RANGE_MIN_BYTES) {
+      dlog(tabId, `[range] 소용량 ${(probe.totalBytes / 1024 / 1024).toFixed(1)}MiB, 기존 방식 사용`);
+      return await startNativeDirectDownload(probe.url, title, itemId, tabId);
+    }
+    if (!opfsAvailable()) {
+      dlog(tabId, '[range] OPFS 미지원, 기존 방식 사용');
+      return await startNativeDirectDownload(probe.url, title, itemId, tabId);
+    }
+
+    const segments = buildDirectRangeSegments(probe);
+    const sizeGiB = probe.totalBytes / 1024 / 1024 / 1024;
+    dlog(tabId, `[range] ${sizeGiB.toFixed(2)}GiB, ${segments.length}개 조각, ${DIRECT_RANGE_CONCURRENT}개 병렬`);
+    const result = await segmentDownload(
+      segments,
+      title,
+      itemId,
+      tabId,
+      'include',
+      ac,
+      null,
+      {
+        forceStreaming: true,
+        concurrency: DIRECT_RANGE_CONCURRENT,
+        expectedTotalBytes: probe.totalBytes,
+        byteProgress: true,
+      }
+    );
+    return { ...result, mode: 'parallel-range' };
+  } finally {
+    if (active.get(itemId) === ac) active.delete(itemId);
+  }
+}
+
+async function probeDirectRange(url, signal) {
+  const safeUrl = assertSafeHttpsUrl(url, '다운로드 URL');
+  let response;
+  try {
+    response = await fetch(safeUrl, {
+      signal,
+      credentials: 'include',
+      headers: { Range: 'bytes=0-0' },
+    });
+  } catch (e) {
+    if (signal.aborted || e.name === 'AbortError') throw new Error('취소됨');
+    throw e;
+  }
+
+  const finalUrl = assertSafeHttpsUrl(response.url || safeUrl, '다운로드 응답 URL');
+  if (response.status !== 206) {
+    await cancelResponseBody(response);
+    return { supported: false, url: finalUrl, reason: `HTTP ${response.status}` };
+  }
+
+  const contentRange = parseContentRange(response.headers.get('content-range'));
+  if (!contentRange || contentRange.start !== 0 || contentRange.end !== 0 || !Number.isSafeInteger(contentRange.total) || contentRange.total < 1) {
+    await cancelResponseBody(response);
+    return { supported: false, url: finalUrl, reason: 'Content-Range 확인 실패' };
+  }
+
+  await readResponseBuffer(response, 1);
+  const etag = response.headers.get('etag');
+  const lastModified = response.headers.get('last-modified');
+  let validator = null;
+  if (etag && !/^W\//i.test(etag)) validator = { type: 'etag', value: etag };
+  else if (lastModified) validator = { type: 'last-modified', value: lastModified };
+
+  return {
+    supported: true,
+    url: finalUrl,
+    totalBytes: contentRange.total,
+    validator,
+  };
+}
+
+function buildDirectRangeSegments(probe) {
+  const count = Math.ceil(probe.totalBytes / DIRECT_RANGE_CHUNK_BYTES);
+  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_SEGMENT_COUNT) {
+    throw new Error('파일 크기에 따른 Range 조각 수가 허용 범위를 벗어났습니다.');
+  }
+
+  const segments = new Array(count);
+  for (let i = 0; i < count; i++) {
+    const start = i * DIRECT_RANGE_CHUNK_BYTES;
+    const end = Math.min(probe.totalBytes - 1, start + DIRECT_RANGE_CHUNK_BYTES - 1);
+    segments[i] = {
+      url: probe.url,
+      range: `${start}-${end}`,
+      totalBytes: probe.totalBytes,
+      validator: probe.validator,
+    };
+  }
+  return segments;
+}
+
+function startNativeDirectDownload(url, title, itemId, tabId) {
+  prog(tabId, itemId, 'merging', '브라우저 다운로드 방식으로 시작 중...');
+  return new Promise((resolve, reject) => {
+    chrome.downloads.download({ url, filename: sanitize(title) + '.mp4' }, id => {
+      if (chrome.runtime.lastError || id === undefined) {
+        reject(new Error(chrome.runtime.lastError?.message || '다운로드를 시작하지 못했습니다.'));
+        return;
+      }
+      prog(tabId, itemId, 'done', '다운로드 시작됨');
+      resolve({ status: 'started', downloadId: id, mode: 'native' });
+    });
+  });
+}
+
+async function cancelResponseBody(response) {
+  try { await response.body?.cancel(); } catch (_) {}
+}
+
 // 세그먼트 다운로드 라우터
 // - 큰 영상(> STREAM_THRESHOLD) + OPFS 지원: 디스크 스트리밍(메모리 고정)
 // - 그 외: 기존 검증된 메모리 경로
 // creds: DASH(클립)는 'include'(기존), 라이브 다시보기 HLS는 'omit'(URL 토큰 인증)
-async function segmentDownload(segments, title, itemId, tabId, creds = 'include', existingController = null, finalizer = null) {
+async function segmentDownload(segments, title, itemId, tabId, creds = 'include', existingController = null, finalizer = null, options = {}) {
   itemId = normalizeItemId(itemId);
   if (!existingController && active.has(itemId)) throw new Error('이미 진행 중인 다운로드입니다.');
+
+  const forceStreaming = options.forceStreaming === true;
+  const concurrency = normalizeConcurrency(options.concurrency);
+  const expectedTotalBytes = Number.isSafeInteger(options.expectedTotalBytes) && options.expectedTotalBytes > 0
+    ? options.expectedTotalBytes
+    : null;
+  const byteProgress = options.byteProgress === true;
 
   const ac = existingController || new AbortController();
   active.set(itemId, ac);
@@ -207,7 +351,7 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
     if (!segments || segments.length === 0) throw new Error('세그먼트 없음');
     validateSegmentPlan(segments);
 
-    if (segments.length > STREAM_THRESHOLD) {
+    if (forceStreaming || segments.length > STREAM_THRESHOLD) {
       if (!opfsAvailable()) {
         throw new Error('대용량 영상은 안전한 디스크 스트리밍(OPFS)이 필요합니다. 브라우저를 최신 버전으로 업데이트해 주세요.');
       }
@@ -217,7 +361,19 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
       } catch (e) {
         throw new Error('대용량 영상 임시 저장소를 준비하지 못했습니다: ' + e.message);
       }
-      if (stream) return await downloadStreaming(segments, title, itemId, tabId, creds, ac, stream, finalizer);
+      if (stream) {
+        return await downloadStreaming(
+          segments,
+          title,
+          itemId,
+          tabId,
+          creds,
+          ac,
+          stream,
+          finalizer,
+          { concurrency, expectedTotalBytes, byteProgress }
+        );
+      }
     }
 
     return await downloadToMemory(segments, title, itemId, tabId, creds, ac, finalizer);
@@ -234,6 +390,8 @@ async function segmentDownload(segments, title, itemId, tabId, creds = 'include'
 async function fetchSeg(segment, signal, creds, attempts = 4) {
   const url = typeof segment === 'string' ? segment : segment?.url;
   const range = typeof segment === 'string' ? null : segment?.range;
+  const expectedTotalBytes = typeof segment === 'string' ? null : segment?.totalBytes;
+  const validator = typeof segment === 'string' ? null : segment?.validator;
   const expectedRangeBytes = range ? rangeLength(range) : null;
   if (!url) throw new Error('세그먼트 URL 없음');
 
@@ -251,28 +409,60 @@ async function fetchSeg(segment, signal, creds, attempts = 4) {
     }
     if (r) {
       if (range && r.status !== 206) {
-        throw new Error(`Range 응답 오류: HTTP ${r.status}. 전체 파일 응답 가능성이 있어 중단 (${url.slice(-30)})`);
-      }
-      const len = parseInt(r.headers.get('content-length') || '0', 10);
-      if (Number.isFinite(len) && len > 0) {
-        if (expectedRangeBytes && len > expectedRangeBytes + 1024) {
-          throw new Error(`Range 크기 불일치: ${len}B > ${expectedRangeBytes}B (${url.slice(-30)})`);
+        const retryable = r.status === 429 || r.status >= 500;
+        await cancelResponseBody(r);
+        if (!retryable) {
+          throw new Error(`Range 응답 오류: HTTP ${r.status}. 전체 파일 응답 가능성이 있어 중단 (${url.slice(-30)})`);
         }
-        if (len > MAX_SEGMENT_BYTES) {
-          throw new Error(`세그먼트 크기 비정상: ${(len / 1024 / 1024).toFixed(1)}MB (${url.slice(-30)})`);
+        lastErr = new Error(`HTTP ${r.status}`);              // Range 429/5xx도 백오프 재시도
+      } else {
+        const len = parseInt(r.headers.get('content-length') || '0', 10);
+        if (Number.isFinite(len) && len > 0) {
+          if (expectedRangeBytes && len > expectedRangeBytes) {
+            await cancelResponseBody(r);
+            throw new Error(`Range 크기 불일치: ${len}B > ${expectedRangeBytes}B (${url.slice(-30)})`);
+          }
+          if (len > MAX_SEGMENT_BYTES) {
+            await cancelResponseBody(r);
+            throw new Error(`세그먼트 크기 비정상: ${(len / 1024 / 1024).toFixed(1)}MB (${url.slice(-30)})`);
+          }
+        }
+        if (r.ok) {
+          assertSafeHttpsUrl(r.url || url, '세그먼트 응답 URL');
+          if (range && expectedTotalBytes) {
+            try {
+              validateDirectRangeResponse(r, range, expectedTotalBytes, validator);
+            } catch (e) {
+              await cancelResponseBody(r);
+              throw e;
+            }
+          }
+          try {
+            return await readResponseBuffer(r, expectedRangeBytes);
+          } catch (e) {
+            if (signal.aborted) throw new Error('취소됨');
+            if (!isRetryableBodyError(e)) throw e;
+            lastErr = e;                                      // 본문 전송 중 끊김/조기 종료 → 같은 Range 재시도
+          }
+        } else {
+          // 영구 오류(429/5xx 제외)는 즉시 전파하고, 일시적 오류만 재시도한다.
+          if (r.status !== 429 && r.status < 500) throw new Error(`HTTP ${r.status} ${url.slice(-30)}`);
+          await cancelResponseBody(r);
+          lastErr = new Error(`HTTP ${r.status}`);
         }
       }
-      if (r.ok) {
-        assertSafeHttpsUrl(r.url || url, '세그먼트 응답 URL');
-        return await readResponseBuffer(r, expectedRangeBytes);
-      }
-      // 영구 오류(429/5xx 제외)는 try 밖이라 즉시 전파 — 재시도 안 함
-      if (r.status !== 429 && r.status < 500) throw new Error(`HTTP ${r.status} ${url.slice(-30)}`);
-      lastErr = new Error(`HTTP ${r.status}`);                // 429/5xx → 재시도
     }
     if (a < attempts - 1) await new Promise(res => setTimeout(res, 500 * (a + 1))); // 0.5s,1s,1.5s 백오프
   }
   throw new Error(`세그먼트 ${attempts}회 실패: ${lastErr?.message || ''} ${url.slice(-30)}`);
+}
+
+function isRetryableBodyError(error) {
+  const message = String(error?.message || '');
+  return error?.name === 'TypeError'
+    || error?.name === 'AbortError'
+    || /network|fetch|terminated|connection|body stream/i.test(message)
+    || /^Range 크기 불일치: \d+B != \d+B/.test(message);
 }
 
 function rangeLength(range) {
@@ -284,8 +474,42 @@ function rangeLength(range) {
   return end - start + 1;
 }
 
+function parseContentRange(value) {
+  const m = String(value || '').match(/^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i);
+  if (!m || m[3] === '*') return null;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  const total = Number(m[3]);
+  if (![start, end, total].every(Number.isSafeInteger) || start < 0 || end < start || total <= end) return null;
+  return { start, end, total };
+}
+
+function validateDirectRangeResponse(response, range, expectedTotalBytes, validator) {
+  const requested = String(range).match(/^(\d+)-(\d+)$/);
+  const contentRange = parseContentRange(response.headers.get('content-range'));
+  if (!requested || !contentRange) throw new Error('Range 응답에 유효한 Content-Range가 없습니다.');
+
+  const start = Number(requested[1]);
+  const end = Number(requested[2]);
+  if (contentRange.start !== start || contentRange.end !== end || contentRange.total !== expectedTotalBytes) {
+    throw new Error(`Content-Range 불일치: ${contentRange.start}-${contentRange.end}/${contentRange.total}`);
+  }
+
+  if (validator?.type && validator?.value) {
+    const current = response.headers.get(validator.type);
+    if (current && current !== validator.value) {
+      throw new Error('다운로드 중 원본 파일 식별자가 변경되어 안전하게 중단했습니다.');
+    }
+  }
+}
+
+function normalizeConcurrency(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= 16 ? n : CONCURRENT;
+}
+
 async function readResponseBuffer(response, expectedBytes) {
-  const maxBytes = expectedBytes ? expectedBytes + 1024 : MAX_SEGMENT_BYTES;
+  const maxBytes = expectedBytes || MAX_SEGMENT_BYTES;
 
   if (!response.body || typeof response.body.getReader !== 'function') {
     const buf = await response.arrayBuffer();
@@ -294,21 +518,26 @@ async function readResponseBuffer(response, expectedBytes) {
   }
 
   const reader = response.body.getReader();
-  const chunks = [];
+  const fixedBuffer = expectedBytes ? new Uint8Array(expectedBytes) : null;
+  const chunks = fixedBuffer ? null : [];
   let total = 0;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     if (!value) continue;
-    total += value.byteLength;
-    if (total > maxBytes) {
+    const nextTotal = total + value.byteLength;
+    if (nextTotal > maxBytes) {
       try { await reader.cancel(); } catch (_) {}
-      throw new Error(`응답 크기 제한 초과: ${(total / 1024 / 1024).toFixed(1)}MB`);
+      throw new Error(`응답 크기 제한 초과: ${(nextTotal / 1024 / 1024).toFixed(1)}MB`);
     }
-    chunks.push(value);
+    if (fixedBuffer) fixedBuffer.set(value, total);
+    else chunks.push(value);
+    total = nextTotal;
   }
 
   assertBufferSize(total, expectedBytes, maxBytes);
+  if (fixedBuffer) return fixedBuffer.buffer;
+
   const out = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
@@ -343,7 +572,7 @@ function validateSegmentPlan(segments) {
 
 // 공통 워커 풀 (슬라이딩 윈도우: 배치 배리어 없이 항상 CONCURRENT개 유지)
 // onChunk(i, arrayBuffer)는 세그먼트 1개 완료 시 호출. waitBeforeFetch(i)로 백프레셔 가능.
-async function runWorkerPool(segments, creds, ac, onChunk, waitBeforeFetch) {
+async function runWorkerPool(segments, creds, ac, onChunk, waitBeforeFetch, concurrency = CONCURRENT) {
   const total = segments.length;
   let next = 0;
   async function worker() {
@@ -356,7 +585,7 @@ async function runWorkerPool(segments, creds, ac, onChunk, waitBeforeFetch) {
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(CONCURRENT, total) }, () =>
+    Array.from({ length: Math.min(normalizeConcurrency(concurrency), total) }, () =>
       worker().catch(e => { ac.abort(); throw e; })
     )
   );
@@ -409,11 +638,14 @@ async function openOpfsStream(itemId) {
 }
 
 // 디스크 스트리밍 경로 — 재정렬 버퍼로 순서를 맞추며 OPFS에 순차 기록 (메모리 고정)
-async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stream, finalizer) {
+async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stream, finalizer, options = {}) {
   const { root, name, fh, writable } = stream;
   const total = segments.length;
   const step = Math.max(1, Math.floor(total / 200));
-  const MAX_AHEAD = 12;                                // 기록 프런티어보다 최대 12개까지만 선행 → Windows 장시간 VOD 메모리 압박 완화
+  const concurrency = normalizeConcurrency(options.concurrency);
+  const expectedTotalBytes = options.expectedTotalBytes || null;
+  const byteProgress = options.byteProgress === true && expectedTotalBytes;
+  const MAX_AHEAD = Math.max(4, concurrency);           // 직접 MP4도 병렬 수만큼만 선행해 메모리 사용량을 고정
   const buffer = new Map();                            // index -> ArrayBuffer (다운로드 완료, 기록 대기)
   const waiters = [];
   const t0 = Date.now();
@@ -441,8 +673,13 @@ async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stre
         writeMs += Date.now() - tw;
         writeIndex++;
         if (writeIndex % step === 0 || writeIndex === total) {
-          const pct = Math.round(writeIndex / total * 100);
-          prog(tabId, itemId, 'downloading', `${writeIndex}/${total} (${pct}%)`, pct);
+          const pct = byteProgress
+            ? Math.round(Number(fileOffset) / expectedTotalBytes * 100)
+            : Math.round(writeIndex / total * 100);
+          const detail = byteProgress
+            ? formatByteProgress(fileOffset, expectedTotalBytes, t0, pct)
+            : `${writeIndex}/${total} (${pct}%)`;
+          prog(tabId, itemId, 'downloading', detail, pct);
         }
         if (writeIndex === 10 || writeIndex % (step * 5) === 0 || writeIndex === total) {
           const sec = (Date.now() - t0) / 1000;
@@ -455,14 +692,24 @@ async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stre
     }
   };
 
-  prog(tabId, itemId, 'downloading', `0/${total}`, 0);
+  prog(
+    tabId,
+    itemId,
+    'downloading',
+    byteProgress ? `0/${(expectedTotalBytes / 1024 / 1024).toFixed(0)} MiB (0%)` : `0/${total}`,
+    0
+  );
   try {
     await runWorkerPool(
       segments, creds, ac,
       async (i, buf) => { buffer.set(i, finalizer ? finalizer.transform(i, buf) : buf); await flush(); },
-      waitForSpace
+      waitForSpace,
+      concurrency
     );
     await flush();                                     // 잔여분 기록
+    if (expectedTotalBytes && fileOffset !== BigInt(expectedTotalBytes)) {
+      throw new Error(`완성 파일 크기 불일치: ${fileOffset}B != ${expectedTotalBytes}B`);
+    }
     const trailer = finalizer ? finalizer.buildTrailer() : null;
     if (trailer) {
       prog(tabId, itemId, 'merging', '재생 시간 및 탐색 정보 생성 중...');
@@ -482,6 +729,14 @@ async function downloadStreaming(segments, title, itemId, tabId, creds, ac, stre
   await deliverDownload(title, { root, name, fh }, tabId, itemId);
   prog(tabId, itemId, 'done', '다운로드 시작됨');
   return { status: 'started' };
+}
+
+function formatByteProgress(writtenBytes, totalBytes, startedAt, pct) {
+  const writtenMiB = Number(writtenBytes) / 1024 / 1024;
+  const totalMiB = totalBytes / 1024 / 1024;
+  const seconds = Math.max(0.001, (Date.now() - startedAt) / 1000);
+  const speedMiB = writtenMiB / seconds;
+  return `${writtenMiB.toFixed(0)}/${totalMiB.toFixed(0)} MiB (${pct}%, ${speedMiB.toFixed(1)} MiB/s)`;
 }
 
 // ---- 완성 파일 전달 (chrome.downloads) ----

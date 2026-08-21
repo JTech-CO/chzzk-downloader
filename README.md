@@ -4,7 +4,7 @@
 
 <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
 
-**이미지는 `v2.2.0`이나, 최신 버전은 `v2.2.5` 임.**
+**이미지는 `v2.2.0`이나, 최신 버전은 `v2.2.6`입니다.**
 
 ## 1. 소개 (Introduction)
 
@@ -12,18 +12,23 @@
 치지직 동영상 또는 클립 탭으로 이동 시에만 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 학습 및 백업을 위한 오프라인 환경에서 자유롭게 시청하는 가치를 제공합니다.
 
 **주요 기능**
-- **VOD & 클립 추출**: DASH MPD 스트리밍 XML을 파싱하여 세그먼트 파일을 병렬 다운로드 후, 하나의 고화질 MP4 파일로 자동 병합합니다. (직접 MP4 다운로드도 지원)
+- **VOD & 클립 추출**: DASH/JSON/HLS 재생 정보를 분석해 최고 화질의 직접 MP4 또는 스트리밍 조각을 선택하고 하나의 MP4로 저장합니다.
+- **대용량 직접 MP4 가속**: 256 MiB 이상의 직접 MP4는 16 MiB Range 조각을 최대 8개 병렬로 받아 OPFS에 원래 순서대로 기록합니다.
+- **원본 호환성 유지**: 직접 MP4는 재인코딩·리먹싱·메타데이터 재작성을 하지 않고 서버 원본 바이트를 그대로 보존해 기존 플레이어 호환성과 화질을 유지합니다.
+- **전체 목록 로딩**: API 페이지를 순차적으로 조회해 16개/24개 이후의 동영상과 클립도 패널에 표시합니다.
 - **목록 정렬**: 패널에서 최신순(기본값), 과거순, 인기순으로 영상 목록을 정렬할 수 있습니다.
 - **그리드 기반 패널 UI**: 현재 페이지의 영상을 감지하여 썸네일과 진행 상태바가 포함된 2열 그리드 리스트를 제공합니다.
 - **라이브 방송 화면 보호**: 라이브 방송 URL에서는 다운로드 아이콘을 표시하지 않아 채팅창과 방송 시청 영역을 가리지 않습니다.
+- **Mac 재생 호환성 개선**: HLS/fMP4 다운로드 시 초기화 세그먼트를 함께 병합해 `moov` 메타데이터 누락으로 인한 재생 실패를 방지합니다.
+- **Windows·팟플레이어 재생 호환성 개선**: `inKey` 없는 라이브 다시보기의 재생시간과 타임라인을 보정하고 64비트 탐색 인덱스를 추가해 파일 길이 표시, 배속, 구간 이동을 지원합니다.
 - **장시간 VOD 안전성 강화**: 10~12시간급 VOD에서도 디스크 스트리밍 경로를 유지하고, 비정상 Range 응답이나 로컬/사설망 URL은 차단합니다.
 - **개발자 디버그 모드 모니터링**: 실시간 API 호출 상태 흐름과 응답 에러를 즉각적으로 파악할 수 있는 로그 뷰어 시스템을 내장하고 있습니다.
 
 **지원 콘텐츠 요약**
 | 유형 | URL 패턴 | 다운로드 방식 | 출력 형식 |
 |------|----------|-------------|----------|
-| VOD (다시보기) | `/{channelId}/videos` | DASH MPD → 세그먼트 병렬 다운로드 병합 | MP4 |
-| 클립 | `/{channelId}/clips` | DASH MPD → 세그먼트 병렬 다운로드 병합 | MP4 |
+| VOD (다시보기) | `/{channelId}/videos` | 직접 MP4 병렬 Range 또는 HLS/fMP4 조각 병합 | MP4 |
+| 클립 | `/{channelId}/clips` | 직접 MP4 또는 DASH 조각 병합 | MP4 |
 
 라이브 방송 URL(`live` 포함)에서는 다운로드 아이콘과 패널이 표시되지 않습니다.
 
@@ -38,12 +43,12 @@
 
 ```
 Content Script (content.js)                    Background (background.js)
-┌──────────────────────────────┐               ┌─────────────────────────┐
-│ URL 감지 (videos/clips 한정)│               │ DASH 세그먼트 병렬 다운로드 │
-│ Chzzk API 다중 페이지 호출   │ ──segments──▶ │  (8개 동시, Blob 병합)    │
-│ DASH MPD XML 파서            │               │ HLS 세그먼트 다운로드     │
-│ 정렬 패널 UI (2열 그리드)    │ ◀──progress── │ chrome.downloads API     │
-│ 디버그 로그                  │               └─────────────────────────┘
+┌──────────────────────────────┐               ┌──────────────────────────────┐
+│ URL 감지 (videos/clips 한정) │               │ 직접 MP4: 8-way Range + OPFS │
+│ Chzzk API 다중 페이지 호출   │ ──media plan─▶│ HLS/DASH: 조각 병렬 다운로드 │
+│ DASH/JSON/HLS 응답 분석      │               │ 크기·Range·파일 식별자 검증  │
+│ 정렬 패널 UI (2열 그리드)    │ ◀──progress── │ chrome.downloads API          │
+│ 디버그 로그                  │               └──────────────────────────────┘
 └──────────────────────────────┘
 ```
 
@@ -57,8 +62,19 @@ videoNo → /service/v2/videos/{videoNo} → videoId + inKey 획득
        → DASH MPD XML 응답
        → XML 파싱: AdaptationSet → 최고 bandwidth Representation 선택
        → BaseURL(직접 MP4) 또는 SegmentTemplate(세그먼트 목록) 추출
-       → Background에서 세그먼트 8개씩 병렬 다운로드 → Blob 병합 → MP4 저장
+       → 직접 MP4: Range 지원·크기 확인 → OPFS 순차 기록 → MP4 저장
+       → 조각 스트림: 세그먼트 8개씩 병렬 다운로드 → 병합 → MP4 저장
 ```
+
+### 직접 MP4 병렬 Range 다운로드
+
+v2.2.6부터 256 MiB 이상의 직접 MP4는 먼저 `bytes=0-0` 요청으로 Range 지원 여부와 전체 크기를 확인합니다. 지원되는 경우 16 MiB 단위의 연속 구간을 최대 8개씩 병렬 요청하고, 완료 순서와 관계없이 OPFS 임시 파일에 원래 바이트 순서대로 기록합니다. 기록 프런티어보다 최대 8개 조각만 앞서가므로 영상 길이가 10~12시간이어도 메모리 사용량이 파일 크기에 비례해 증가하지 않습니다.
+
+각 응답은 `206 Partial Content`, 정확한 `Content-Range`, 요청 본문 크기, 전체 파일 크기, ETag 또는 Last-Modified 일관성을 검사합니다. 일시적인 `429`/서버 오류는 백오프 후 최대 4회 재시도하며, 완성 파일의 바이트 수가 사전 확인한 원본 크기와 같을 때만 저장 단계로 이동합니다.
+
+Range를 지원하지 않거나 파일이 256 MiB 미만이거나 OPFS를 사용할 수 없는 환경에서는 기존 `chrome.downloads` 단일 다운로드로 자동 복귀합니다. 병렬 다운로드 도중 검증에 실패하면 불완전한 임시 파일을 삭제하고 오류를 알리며, 장시간 영상이라는 이유만으로 다운로드를 취소하지 않습니다.
+
+직접 MP4 경로는 원본 데이터를 재인코딩하거나 컨테이너를 다시 만들지 않습니다. 따라서 화질, 코덱, `moov`/탐색 메타데이터와 팟플레이어·Windows Media Player·macOS 플레이어 호환성은 서버 원본과 동일합니다. `inKey` 없는 HLS/fMP4는 아래의 기존 재생시간·타임라인·탐색 인덱스 보정 경로를 계속 사용합니다.
 
 ### 클립 다운로드 플로우
 
@@ -121,20 +137,37 @@ neonplayer API는 JSON이 아닌 **DASH MPD(XML)** 을 반환합니다.
 
 ```text
 chzzk-downloader/
-├── manifest.json       # Chrome Manifest 권한 및 스크립트 연결 설정 파일 (버전 관리)
-├── content.js          # API 호출(DOM 의존), 다운로더 UI 렌더링, 응답 처리 로직
-├── content.css         # 확장 프로그램의 다운로더 패널(2열 구조)을 꾸미는 스타일시트
-├── background.js       # Blob/DASH 세그먼트 파일 병렬 제어 및 백그라운드 다운로드 로직 수행
-└── icons/              # 브라우저 UI 및 관리에 표시되는 로고 이미지 애셋 폴더
+├── manifest.json                 # Chrome Manifest와 버전
+├── content.js                    # API 호출, UI, 다운로드 계획 생성
+├── content.css                   # 다운로더 패널 스타일
+├── background.js                 # Range/HLS/DASH 병렬 다운로드와 MP4 완성
+├── offscreen.html / offscreen.js # 대용량 OPFS 파일의 저장 URL 생성
+├── tests/range-download.test.js  # 병렬 Range 단위 테스트
+├── legacy/v2.2.5/                # 변경 전 v2.2.5 전체 파일 보존본
+└── icons/                        # 확장 프로그램 아이콘
 ```
 
-## 6. 정보 (Info)
+`legacy/`와 `tests/`는 개발·보존용이며 `package.ps1`이 만드는 웹스토어 배포 ZIP에는 포함되지 않습니다.
 
-- **Version**: `v2.2.5`
+## 6. 검증 (Tests)
+
+```powershell
+node --check background.js
+node --check content.js
+node tests/range-download.test.js
+powershell -ExecutionPolicy Bypass -File .\package.ps1
+```
+
+Range 단위 테스트는 구간의 연속성, 사전 확인, 전체 응답 취소, `Content-Range`/파일 식별자 검증, 일시 오류 재시도, 응답 크기 제한, 워커 동시성 상한을 검사합니다.
+
+## 7. 정보 (Info)
+
+- **Version**: `v2.2.6`
 - **Notice**:
   - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
   - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.
   - v2.2.4부터 백그라운드 헤더 변경 범위는 Naver/Pstatic 요청으로 제한합니다.
   - v2.2.5에서는 치지직 공식 API가 라이브 다시보기에 사용하는 `light-slit.akamaized.net`과 `ex-nlive-slitvod-streaming.navercdn.com`만 호스트 권한에 추가하며, 코드 검증은 해당 호스트의 `/chzzk/` 경로로 한정합니다.
+  - v2.2.6에서는 큰 직접 MP4를 병렬 Range로 가속하되, 원본 바이트와 파일 크기를 검증하고 Range 미지원 환경에서는 기존 방식으로 자동 복귀합니다. 새 권한이나 외부 서버는 추가하지 않습니다.
   - 사용자 본인의 VOD 백업 및 개인용 학습 목적으로만 활용하십시오.
 - **Privacy Policy**: [개인정보 처리방침 안내](<https://jtech-co.github.io/chzzk-downloader/privacy-policy.html>)
