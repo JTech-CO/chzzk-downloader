@@ -78,6 +78,67 @@ Range 미지원, 256 MiB 미만, OPFS 미지원 환경에서는 다운로드 시
 
 공개 치지직 VOD CDN 통합 확인에서는 모든 요청이 `206`을 반환했고, 인접한 두 Range를 이어 붙인 128 KiB 샘플이 같은 구간을 한 번에 받은 결과와 바이트 및 SHA-256 값까지 일치했습니다.
 
+### 장시간 VOD 실측 결과
+
+아래는 Chzzk Downloader 2.2.6 버전으로 4시간 37분짜리 15.85GB 크기의 VOD 동영상을 다운로드한 로그 내역이며, 초당 10MB 내외의 속도로 약 25분이 소요되었습니다. (inKey 값이 있는 동영상이었으며, inKey 값이 없는 경우에는 약 2배 정도의 시간이 소요됩니다.)
+
+```text
+[22:42:56.698] [BG] [stream] 1015/1015 +1538s (0.7 seg/s, write누적 32.2s)
+[22:42:39.399] [BG] [stream] 1000/1015 +1520s (0.7 seg/s, write누적 31.8s)
+[22:42:01.462] [BG] [stream] 975/1015 +1482s (0.7 seg/s, write누적 30.9s)
+[22:41:25.779] [BG] [stream] 950/1015 +1447s (0.7 seg/s, write누적 30.4s)
+[22:40:49.872] [BG] [stream] 925/1015 +1411s (0.7 seg/s, write누적 29.6s)
+[22:40:10.296] [BG] [stream] 900/1015 +1371s (0.7 seg/s, write누적 29.0s)
+[22:39:32.969] [BG] [stream] 875/1015 +1334s (0.7 seg/s, write누적 28.4s)
+[22:38:55.988] [BG] [stream] 850/1015 +1297s (0.7 seg/s, write누적 27.8s)
+[22:38:16.012] [BG] [stream] 825/1015 +1257s (0.7 seg/s, write누적 26.7s)
+[22:37:39.199] [BG] [stream] 800/1015 +1220s (0.7 seg/s, write누적 25.5s)
+[22:37:00.392] [BG] [stream] 775/1015 +1181s (0.7 seg/s, write누적 24.2s)
+[22:36:24.046] [BG] [stream] 750/1015 +1145s (0.7 seg/s, write누적 22.7s)
+[22:35:46.984] [BG] [stream] 725/1015 +1108s (0.7 seg/s, write누적 20.7s)
+[22:35:10.556] [BG] [stream] 700/1015 +1071s (0.7 seg/s, write누적 18.9s)
+[22:34:33.123] [BG] [stream] 675/1015 +1034s (0.7 seg/s, write누적 17.4s)
+[22:33:57.597] [BG] [stream] 650/1015 +998s (0.7 seg/s, write누적 16.2s)
+[22:33:18.888] [BG] [stream] 625/1015 +960s (0.7 seg/s, write누적 15.1s)
+[22:32:42.244] [BG] [stream] 600/1015 +923s (0.6 seg/s, write누적 14.4s)
+[22:32:05.572] [BG] [stream] 575/1015 +887s (0.6 seg/s, write누적 13.7s)
+[22:31:22.386] [BG] [stream] 550/1015 +843s (0.7 seg/s, write누적 13.2s)
+[22:30:47.751] [BG] [stream] 525/1015 +809s (0.6 seg/s, write누적 12.5s)
+[22:30:11.058] [BG] [stream] 500/1015 +772s (0.6 seg/s, write누적 12.0s)
+[22:29:34.782] [BG] [stream] 475/1015 +736s (0.6 seg/s, write누적 11.5s)
+[22:28:57.920] [BG] [stream] 450/1015 +699s (0.6 seg/s, write누적 10.9s)
+[22:28:20.693] [BG] [stream] 425/1015 +662s (0.6 seg/s, write누적 10.3s)
+[22:27:45.339] [BG] [stream] 400/1015 +626s (0.6 seg/s, write누적 9.7s)
+[22:27:09.318] [BG] [stream] 375/1015 +590s (0.6 seg/s, write누적 9.0s)
+[22:26:32.209] [BG] [stream] 350/1015 +553s (0.6 seg/s, write누적 8.4s)
+[22:25:51.846] [BG] [stream] 325/1015 +513s (0.6 seg/s, write누적 7.8s)
+[22:25:11.197] [BG] [stream] 300/1015 +472s (0.6 seg/s, write누적 7.2s)
+[22:24:33.348] [BG] [stream] 275/1015 +434s (0.6 seg/s, write누적 6.7s)
+[22:23:56.198] [BG] [stream] 250/1015 +397s (0.6 seg/s, write누적 6.1s)
+[22:23:18.418] [BG] [stream] 225/1015 +359s (0.6 seg/s, write누적 5.5s)
+[22:22:38.869] [BG] [stream] 200/1015 +320s (0.6 seg/s, write누적 4.8s)
+[22:22:01.656] [BG] [stream] 175/1015 +283s (0.6 seg/s, write누적 4.2s)
+[22:21:23.488] [BG] [stream] 150/1015 +244s (0.6 seg/s, write누적 3.6s)
+[22:20:46.100] [BG] [stream] 125/1015 +207s (0.6 seg/s, write누적 3.1s)
+[22:20:08.435] [BG] [stream] 100/1015 +169s (0.6 seg/s, write누적 2.6s)
+[22:19:27.772] [BG] [stream] 75/1015 +129s (0.6 seg/s, write누적 1.9s)
+[22:18:47.385] [BG] [stream] 50/1015 +88s (0.6 seg/s, write누적 1.3s)
+[22:18:08.151] [BG] [stream] 25/1015 +49s (0.5 seg/s, write누적 0.8s)
+[22:17:42.073] [BG] [stream] 10/1015 +23s (0.4 seg/s, write누적 0.3s)
+[22:17:19.058] [BG] [range] 15.85GiB, 1015개 조각, 8개 병렬
+[22:17:17.742] [DL] 결과: type=mp4
+[22:17:17.742] [DASH] 직접 URL: https://b01-kr-naver-vod.pstatic.net/glive/c/read/v2/VOD_ALPHA/glive/302F532DCA1
+[22:17:17.742] [DASH] 최고화질: type=direct, bw=8170000
+[22:17:17.735] [NEO] 응답 길이=322537, 시작="<?xml version="1.0" encoding="UTF-8" sta"
+[22:17:17.384] [NEO] https://apis.naver.com/neonplayer/vodplay/v2/playback/302F532DCA18B45DF5DA7E48F7...
+[22:17:17.384] [VOD] Step 2: neonplayer 호출 (DASH 우선)
+[22:17:17.384] [VOD] videoId=302F532DCA18B45D..., inKey 길이=85
+[22:17:17.352] [VOD] Step 1: /service/v2/videos/14782316
+[22:17:11.570] [Notice] 채널 VOD 유형=fast (vodStatus=ABR_HLS, inKey=O)
+[22:17:11.515] [Scan] DOM 스캔 완료: 2개 확인, +0개 추가
+[22:17:11.515] [Scan] VOD API page=1, +2, total=2
+```
+
 ---
 
 ## 6. 유지되는 보호 장치
