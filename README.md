@@ -1,155 +1,61 @@
 # Chzzk Downloader
 
-> **네이버 치지직(Chzzk)에서 VOD(다시보기) 및 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
+> **네이버 치지직(Chzzk)의 VOD(다시보기)와 클립을 원본 화질 MP4로 다운로드하는 Chrome 확장 프로그램입니다.**
 
-<img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" width="32%"> <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" width="32%">
+<p align="center">
+  <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/1-Main.png" alt="Chzzk Downloader 메인 화면" width="32%">
+  <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/2-Sub1.png" alt="Chzzk Downloader 목록 화면" width="32%">
+  <img src="https://raw.githubusercontent.com/JTech-CO/chzzk-downloader/refs/heads/main/image/3-Sub2.png" alt="Chzzk Downloader 다운로드 화면" width="32%">
+</p>
 
-**이미지는 `v2.2.0`이나, 최신 버전은 `v2.2.6`입니다.**
+**이미지는 `v2.2.0` 기준이며, 최신 버전은 `v2.2.6`입니다.**
 
-## 1. 소개 (Introduction)
+## 주요 기능
 
-이 프로젝트는 네이버 치지직(Chzzk) 스트리머 채널의 동영상(VOD) 및 클립을 간편하게 다운로드할 수 있도록 돕는 비공식 확장 프로그램입니다. 
-치지직 동영상 또는 클립 탭으로 이동 시에만 화면 우측 하단에 생성되는 패널을 통해 직관적으로 영상을 다운로드하여 학습 및 백업을 위한 오프라인 환경에서 자유롭게 시청하는 가치를 제공합니다.
+- **원본 화질 다운로드**: VOD와 클립의 직접 MP4 또는 DASH/HLS 조각을 최고 화질로 저장합니다. 재인코딩하지 않아 원본 화질을 유지합니다.
+- **빠르고 안정적인 장시간 VOD 다운로드**: 256 MiB 이상의 직접 MP4는 16 MiB 단위로 최대 8개씩 병렬 다운로드하고 OPFS에 순차 기록합니다. 일시 오류를 재시도하며 10~12시간급 영상도 길이 때문에 중단하지 않습니다.
+- **재생 호환성 보정**: HLS/fMP4의 초기화 세그먼트와 재생 시간·타임라인·64비트 탐색 인덱스를 보정해 `inKey` 유무와 관계없이 macOS, Windows Media Player, 팟플레이어에서 재생과 탐색이 가능하도록 처리합니다.
+- **전체 목록과 정렬**: 16개/24개 이후의 항목까지 모두 불러오며 최신순(기본값), 과거순, 인기순 정렬을 지원합니다.
+- **페이지별 UI 표시**: 다운로드 아이콘은 동영상(`videos`)과 클립(`clips`) 페이지에만 표시하고 라이브(`live`) 페이지에서는 숨깁니다.
+- **진행 상태와 로그**: 다운로드 진행률, 빠른/느린 다운로드 방식, API 및 오류 로그를 패널에서 확인하고 복사할 수 있습니다.
 
-**주요 기능**
-- **VOD & 클립 추출**: DASH/JSON/HLS 재생 정보를 분석해 최고 화질의 직접 MP4 또는 스트리밍 조각을 선택하고 하나의 MP4로 저장합니다.
-- **대용량 직접 MP4 가속**: 256 MiB 이상의 직접 MP4는 16 MiB Range 조각을 최대 8개 병렬로 받아 OPFS에 원래 순서대로 기록합니다.
-- **원본 호환성 유지**: 직접 MP4는 재인코딩·리먹싱·메타데이터 재작성을 하지 않고 서버 원본 바이트를 그대로 보존해 기존 플레이어 호환성과 화질을 유지합니다.
-- **전체 목록 로딩**: API 페이지를 순차적으로 조회해 16개/24개 이후의 동영상과 클립도 패널에 표시합니다.
-- **목록 정렬**: 패널에서 최신순(기본값), 과거순, 인기순으로 영상 목록을 정렬할 수 있습니다.
-- **그리드 기반 패널 UI**: 현재 페이지의 영상을 감지하여 썸네일과 진행 상태바가 포함된 2열 그리드 리스트를 제공합니다.
-- **라이브 방송 화면 보호**: 라이브 방송 URL에서는 다운로드 아이콘을 표시하지 않아 채팅창과 방송 시청 영역을 가리지 않습니다.
-- **Mac 재생 호환성 개선**: HLS/fMP4 다운로드 시 초기화 세그먼트를 함께 병합해 `moov` 메타데이터 누락으로 인한 재생 실패를 방지합니다.
-- **Windows·팟플레이어 재생 호환성 개선**: `inKey` 없는 라이브 다시보기의 재생시간과 타임라인을 보정하고 64비트 탐색 인덱스를 추가해 파일 길이 표시, 배속, 구간 이동을 지원합니다.
-- **장시간 VOD 안전성 강화**: 10~12시간급 VOD에서도 디스크 스트리밍 경로를 유지하고, 비정상 Range 응답이나 로컬/사설망 URL은 차단합니다.
-- **개발자 디버그 모드 모니터링**: 실시간 API 호출 상태 흐름과 응답 에러를 즉각적으로 파악할 수 있는 로그 뷰어 시스템을 내장하고 있습니다.
+| 콘텐츠 | URL | 다운로드 방식 | 결과 |
+|---|---|---|---|
+| VOD | `/{channelId}/videos` | 직접 MP4 병렬 `Range` 또는 HLS/fMP4 병합 | MP4 |
+| 클립 | `/{channelId}/clips` | 직접 MP4 또는 DASH 병합 | MP4 |
 
-**지원 콘텐츠 요약**
-| 유형 | URL 패턴 | 다운로드 방식 | 출력 형식 |
-|------|----------|-------------|----------|
-| VOD (다시보기) | `/{channelId}/videos` | 직접 MP4 병렬 Range 또는 HLS/fMP4 조각 병합 | MP4 |
-| 클립 | `/{channelId}/clips` | 직접 MP4 또는 DASH 조각 병합 | MP4 |
-
-라이브 방송 URL(`live` 포함)에서는 다운로드 아이콘과 패널이 표시되지 않습니다.
-
-## 2. 기술 스택 (Tech Stack)
-
-- **Frontend**: Vanilla JavaScript, CSS, HTML
-- **Background Task Execution**: Chrome Extension Service Worker (Manifest V3)
-- **APIs**: Fetch API, Chrome Downloads API
-- **Data Engineering**: XML DOMParser, JavaScript Blob Data Merging
-
-## 3. 기술 아키텍처 (Architecture)
-
-```
-Content Script (content.js)                    Background (background.js)
-┌──────────────────────────────┐               ┌──────────────────────────────┐
-│ URL 감지 (videos/clips 한정) │               │ 직접 MP4: 8-way Range + OPFS │
-│ Chzzk API 다중 페이지 호출   │ ──media plan─▶│ HLS/DASH: 조각 병렬 다운로드 │
-│ DASH/JSON/HLS 응답 분석      │               │ 크기·Range·파일 식별자 검증  │
-│ 정렬 패널 UI (2열 그리드)    │ ◀──progress── │ chrome.downloads API          │
-│ 디버그 로그                  │               └──────────────────────────────┘
-└──────────────────────────────┘
-```
-
-Content Script에서 API를 호출하는 이유는 `chzzk.naver.com` 페이지 컨텍스트의 네이버 로그인 쿠키(`NID_AUT`, `NID_SES`)가 `fetch(..., { credentials: 'include' })`를 통해 자동으로 전달되어야 하기 때문입니다. Background Service Worker에서는 이 쿠키에 접근할 수 없습니다.
-
-### VOD 다운로드 플로우
-
-```
-videoNo → /service/v2/videos/{videoNo} → videoId + inKey 획득
-       → /neonplayer/vodplay/v2/playback/{videoId}?key={inKey}&sid=2099&env=real&lc=ko&cpl=ko
-       → DASH MPD XML 응답
-       → XML 파싱: AdaptationSet → 최고 bandwidth Representation 선택
-       → BaseURL(직접 MP4) 또는 SegmentTemplate(세그먼트 목록) 추출
-       → 직접 MP4: Range 지원·크기 확인 → OPFS 순차 기록 → MP4 저장
-       → 조각 스트림: 세그먼트 8개씩 병렬 다운로드 → 병합 → MP4 저장
-```
-
-### 직접 MP4 병렬 Range 다운로드
-
-v2.2.6부터 256 MiB 이상의 직접 MP4는 먼저 `bytes=0-0` 요청으로 Range 지원 여부와 전체 크기를 확인합니다. 지원되는 경우 16 MiB 단위의 연속 구간을 최대 8개씩 병렬 요청하고, 완료 순서와 관계없이 OPFS 임시 파일에 원래 바이트 순서대로 기록합니다. 기록 프런티어보다 최대 8개 조각만 앞서가므로 영상 길이가 10~12시간이어도 메모리 사용량이 파일 크기에 비례해 증가하지 않습니다.
-
-각 응답은 `206 Partial Content`, 정확한 `Content-Range`, 요청 본문 크기, 전체 파일 크기, ETag 또는 Last-Modified 일관성을 검사합니다. 일시적인 `429`/서버 오류는 백오프 후 최대 4회 재시도하며, 완성 파일의 바이트 수가 사전 확인한 원본 크기와 같을 때만 저장 단계로 이동합니다.
-
-Range를 지원하지 않거나 파일이 256 MiB 미만이거나 OPFS를 사용할 수 없는 환경에서는 기존 `chrome.downloads` 단일 다운로드로 자동 복귀합니다. 병렬 다운로드 도중 검증에 실패하면 불완전한 임시 파일을 삭제하고 오류를 알리며, 장시간 영상이라는 이유만으로 다운로드를 취소하지 않습니다.
-
-직접 MP4 경로는 원본 데이터를 재인코딩하거나 컨테이너를 다시 만들지 않습니다. 따라서 화질, 코덱, `moov`/탐색 메타데이터와 팟플레이어·Windows Media Player·macOS 플레이어 호환성은 서버 원본과 동일합니다. `inKey` 없는 HLS/fMP4는 아래의 기존 재생시간·타임라인·탐색 인덱스 보정 경로를 계속 사용합니다.
-
-### 클립 다운로드 플로우
-
-```
-clipId → /service/v1/play-info/clip/{clipId} → videoId + inKey 획득
-       → VOD와 동일한 neonplayer 호출
-       → DASH MPD XML → 파싱 → 다운로드
-```
-
-### HLS/fMP4 다운로드 호환성
-
-라이브 다시보기 등 HLS/fMP4 형식에서는 플레이리스트의 `#EXT-X-MAP` 초기화 세그먼트에 MP4 재생에 필요한 `ftyp`/`moov` 메타데이터가 들어갈 수 있습니다. Chzzk Downloader는 이 초기화 세그먼트를 실제 영상 조각 앞에 함께 병합하여 macOS QuickTime 계열 플레이어에서도 정상 재생 가능한 MP4 파일을 생성합니다.
-
-`inKey` 없는 라이브 다시보기는 초기화 세그먼트의 전체·영상·오디오 재생시간이 0이고 조각 탐색 인덱스가 없는 상태로 제공될 수 있습니다. v2.2.5는 HLS의 실제 재생시간을 `mvhd`/`tkhd`/`mdhd`/`mehd`에 기록하고, 원본 A/V 간격을 유지하면서 `tfdt` 타임라인을 0초 기준으로 보정한 뒤 64비트 `mfra` 탐색 인덱스를 덧붙입니다. 재인코딩 없이 원본 조각을 그대로 사용하므로 장시간 VOD도 기존 OPFS 디스크 스트리밍 경로로 처리됩니다.
-
-### 목록 로딩 및 정렬
-
-동영상과 클립 목록은 첫 페이지만 가져오지 않고 API 페이지를 순차적으로 조회해 가능한 전체 항목을 패널에 표시합니다. 패널 상단의 정렬 버튼으로 최신순, 과거순, 인기순을 즉시 전환할 수 있으며 정렬은 사용자의 브라우저 안에서 로컬로 처리됩니다.
-
-### API 엔드포인트
-
-| 용도 | URL |
-|------|-----|
-| 영상 목록 | `api.chzzk.naver.com/service/v1/channels/{channelId}/videos` |
-| 클립 목록 | `api.chzzk.naver.com/service/v1/channels/{channelId}/clips` |
-| 영상 상세 | `api.chzzk.naver.com/service/v2/videos/{videoNo}` |
-| 클립 상세 | `api.chzzk.naver.com/service/v1/play-info/clip/{clipId}` |
-| 재생 정보 | `apis.naver.com/neonplayer/vodplay/v2/playback/{videoId}?key={inKey}&sid=2099&env=real&lc=ko&cpl=ko` |
-
-### neonplayer 응답 형식
-
-neonplayer API는 JSON이 아닌 **DASH MPD(XML)** 을 반환합니다. 
-`?sid=2099&env=real&lc=ko&cpl=ko` 파라미터는 필수이며, 생략 시 400 에러가 발생합니다.
-
-### DASH MPD 파싱 전략
-
-1. `AdaptationSet` 중 `mimeType`이 `video/*`인 것을 선택
-2. `Representation` 중 `bandwidth`가 가장 높은 것을 선택 (원본 화질)
-3. `BaseURL`이 있으면 직접 MP4 URL로 처리
-4. `SegmentTemplate`이 있으면 `initialization` + `media` 패턴에서 세그먼트 URL 배열을 생성
-
-## 4. 설치 및 실행 (Quick Start)
-
-**요구 사항**: Chrome 또는 Chromium 기반(Whale 등) 브라우저
-
-1. **설치 (Install)**
-   - 최신 `chzzk-downloader.zip` 파일을 다운로드하고 압축을 해제합니다.
-   - 브라우저에서 `chrome://extensions` (확장 프로그램 관리) 페이지로 이동합니다.
-   - 우측 상단 모서리에 있는 **개발자 모드** 토글을 켭니다.
-   - 좌측 상단의 **[압축 해제된 확장 프로그램을 로드합니다]** 아이콘을 클릭하고, 방금 전 압축 해제한 폴더를 선택하여 확장을 등록합니다. (동일 확장 프로그램의 구 버전이 존재한다면 먼저 지운 후 설치해주세요)
-
-2. **실행 (Run)**
-   - 웹 브라우저에서 [치지직](https://chzzk.naver.com/)에 접속하여 본인의 계정으로 **로그인**합니다.
-   - 다운로드받고자 하는 스트리머의 채널에서 **동영상** 또는 **클립** 탭으로 진입합니다.
-   - 화면 우측 하단의 초록색 다운로드 스크롤러 아이콘(⬇)을 클릭해 패널 창을 엽니다. 라이브 방송 페이지에서는 아이콘이 표시되지 않습니다.
-   - 패널 상단의 **최신순 / 과거순 / 인기순** 버튼으로 원하는 기준에 맞게 목록을 정렬합니다.
-   - 표시되는 영상 목록 중 원하는 카드를 클릭하면 그 즉시 다운로드 파싱이 시작됩니다.
-
-## 5. 폴더 구조 (Structure)
+## 동작 방식
 
 ```text
-chzzk-downloader/
-├── manifest.json                 # Chrome Manifest와 버전
-├── content.js                    # API 호출, UI, 다운로드 계획 생성
-├── content.css                   # 다운로더 패널 스타일
-├── background.js                 # Range/HLS/DASH 병렬 다운로드와 MP4 완성
-├── offscreen.html / offscreen.js # 대용량 OPFS 파일의 저장 URL 생성
-├── tests/range-download.test.js  # 병렬 Range 단위 테스트
-├── legacy/v2.2.5/                # 변경 전 v2.2.5 전체 파일 보존본
-└── icons/                        # 확장 프로그램 아이콘
+동영상/클립 목록 조회 및 정렬
+  → 선택한 콘텐츠의 최고 화질 재생 정보 확인
+  → 직접 MP4: 원본 파일 다운로드 또는 병렬 Range + OPFS
+  → DASH/HLS: 초기화 조각과 미디어 조각 병렬 다운로드 및 병합
+  → Chrome Downloads API로 MP4 저장
 ```
 
-`legacy/`와 `tests/`는 개발·보존용이며 `package.ps1`이 만드는 웹스토어 배포 ZIP에는 포함되지 않습니다.
+256 MiB 이상의 직접 MP4는 서버의 `Range` 지원과 전체 크기를 확인한 뒤 16 MiB 구간을 최대 8개씩 병렬로 받습니다. 각 응답의 범위, 크기, 파일 식별자를 검증하고 실패 시 재시도합니다. `Range`나 OPFS를 사용할 수 없거나 파일이 작은 경우에는 기존 단일 다운로드 방식으로 자동 전환합니다.
 
-## 6. 검증 (Tests)
+직접 MP4는 서버 원본 바이트를 그대로 저장합니다. HLS/fMP4는 초기화 세그먼트와 원본 영상 조각을 병합하고 필요한 재생 메타데이터만 보정합니다. 모든 처리는 사용자의 브라우저에서 치지직 공식 API와 지정된 미디어 CDN을 통해 이루어지며 개발자 서버를 거치지 않습니다.
+
+## 설치 및 사용
+
+**지원 브라우저**: Chrome, Whale 등 Chromium 기반 브라우저
+
+1. 최신 `chzzk-downloader.zip`을 다운로드하고 압축을 해제합니다.
+2. `chrome://extensions`에서 **개발자 모드**를 켭니다.
+3. **압축 해제된 확장 프로그램을 로드합니다**를 눌러 폴더를 선택합니다. 구 버전이 설치되어 있다면 먼저 제거합니다.
+4. [치지직](https://chzzk.naver.com/)에 로그인하고 채널의 **동영상** 또는 **클립** 탭으로 이동합니다.
+5. 오른쪽 아래의 다운로드 아이콘을 눌러 목록을 열고 원하는 영상을 선택합니다.
+
+## 개발 및 검증
+
+주요 파일:
+
+- `content.js`: 목록 조회, UI, 다운로드 계획 생성
+- `background.js`: 직접 MP4, Range, HLS/DASH 다운로드와 MP4 완성
+- `offscreen.js`: OPFS 파일의 임시 다운로드 URL 생성
+- `legacy/v2.2.5/`: v2.2.5 전체 보존본
 
 ```powershell
 node --check background.js
@@ -158,16 +64,11 @@ node tests/range-download.test.js
 powershell -ExecutionPolicy Bypass -File .\package.ps1
 ```
 
-Range 단위 테스트는 구간의 연속성, 사전 확인, 전체 응답 취소, `Content-Range`/파일 식별자 검증, 일시 오류 재시도, 응답 크기 제한, 워커 동시성 상한을 검사합니다.
+## 안내
 
-## 7. 정보 (Info)
-
-- **Version**: `v2.2.6`
-- **Notice**:
-  - 시스템 특성상 인증(성인 인증, 맴버십 인증 등)이 요구되는 콘텐츠는 사용자가 브라우저상에서 치지직 로그인 및 조건 충족을 완료한 상태에서 진행해야 정상 동작합니다.
-  - Naver 및 Chzzk의 비공식 API로 구동되므로 통신 프로토콜 변경에 의해 예고 없이 다운로드가 차단될 수 있습니다.
-  - v2.2.4부터 백그라운드 헤더 변경 범위는 Naver/Pstatic 요청으로 제한합니다.
-  - v2.2.5에서는 치지직 공식 API가 라이브 다시보기에 사용하는 `light-slit.akamaized.net`과 `ex-nlive-slitvod-streaming.navercdn.com`만 호스트 권한에 추가하며, 코드 검증은 해당 호스트의 `/chzzk/` 경로로 한정합니다.
-  - v2.2.6에서는 큰 직접 MP4를 병렬 Range로 가속하되, 원본 바이트와 파일 크기를 검증하고 Range 미지원 환경에서는 기존 방식으로 자동 복귀합니다. 새 권한이나 외부 서버는 추가하지 않습니다.
-  - 사용자 본인의 VOD 백업 및 개인용 학습 목적으로만 활용하십시오.
-- **Privacy Policy**: [개인정보 처리방침 안내](<https://jtech-co.github.io/chzzk-downloader/privacy-policy.html>)
+- **버전**: `v2.2.6`
+- 성인·멤버십 콘텐츠는 치지직 로그인과 해당 인증이 필요합니다.
+- 치지직의 비공식 API를 사용하므로 서비스 변경 시 동작하지 않을 수 있습니다.
+- 라이브 다시보기용 외부 CDN은 치지직 공식 API가 지정한 두 호스트의 `/chzzk/` 경로만 허용합니다.
+- 사용자 본인의 VOD 백업과 개인적인 학습·소장 목적으로만 사용해 주세요.
+- [개인정보 처리방침](https://jtech-co.github.io/chzzk-downloader/privacy-policy.html)
