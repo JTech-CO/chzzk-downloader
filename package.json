@@ -1,0 +1,21 @@
+{
+  "name": "chzzk-downloader",
+  "version": "2.3.3",
+  "private": true,
+  "description": "Chzzk Downloader development and browser regression tests",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "pretest": "npm run build",
+    "test": "node tests/range-download.test.js && node --test tests/regression.test.js tests/storage.test.js tests/ui.test.js tests/extension.test.js tests/storage-extension.test.js tests/compatibility.test.js tests/vod-resolution.test.js tests/metadata-network.test.js tests/network-extension.test.js",
+    "test:unit": "node tests/range-download.test.js && node --test tests/regression.test.js tests/storage.test.js tests/metadata-network.test.js",
+    "test:browser": "node --test tests/ui.test.js tests/extension.test.js tests/storage-extension.test.js tests/compatibility.test.js tests/vod-resolution.test.js tests/network-extension.test.js",
+    "pretest:browser": "npm run build",
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package.ps1"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

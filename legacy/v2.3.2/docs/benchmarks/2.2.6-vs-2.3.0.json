@@ -1,0 +1,180 @@
+{
+  "date": "2026-09-19T18:57:48.729Z",
+  "environment": {
+    "node": "v25.2.0",
+    "platform": "win32"
+  },
+  "conditions": {
+    "network": "Mock fetch and memory-backed OPFS; 32 x 4-byte ranges; 40 ms response latency; optional first range 500 ms; saves mocked; no CDN or real disk throughput",
+    "ui": "Actual headless Chromium, unchanged UI source, empty host page; 2400 items; 24/page; mock fetch delay 20ms/page; first-card animation frame; 1280x900 viewport",
+    "repeats": 3
+  },
+  "summary": {
+    "uniform-40ms:2.2.6": 180.5,
+    "uniform-40ms:2.3.0": 374.2,
+    "first-range-500ms:2.2.6": 640.3,
+    "first-range-500ms:2.3.0": 501.6,
+    "ui-first:2.2.6": 2978.2,
+    "ui-first:2.3.0": 51.1
+  },
+  "network": [
+    {
+      "version": "2.2.6",
+      "scenario": "uniform-40ms",
+      "repeat": 1,
+      "elapsedMs": 187.9,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "uniform-40ms",
+      "repeat": 1,
+      "elapsedMs": 377.5,
+      "peak": 4,
+      "issuedBeforeFirst": 4,
+      "requests": 32
+    },
+    {
+      "version": "2.2.6",
+      "scenario": "first-range-500ms",
+      "repeat": 1,
+      "elapsedMs": 640.1,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "first-range-500ms",
+      "repeat": 1,
+      "elapsedMs": 501.4,
+      "peak": 4,
+      "issuedBeforeFirst": 32,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "uniform-40ms",
+      "repeat": 2,
+      "elapsedMs": 362.2,
+      "peak": 4,
+      "issuedBeforeFirst": 4,
+      "requests": 32
+    },
+    {
+      "version": "2.2.6",
+      "scenario": "uniform-40ms",
+      "repeat": 2,
+      "elapsedMs": 180.5,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "first-range-500ms",
+      "repeat": 2,
+      "elapsedMs": 501.6,
+      "peak": 4,
+      "issuedBeforeFirst": 32,
+      "requests": 32
+    },
+    {
+      "version": "2.2.6",
+      "scenario": "first-range-500ms",
+      "repeat": 2,
+      "elapsedMs": 640.3,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.2.6",
+      "scenario": "uniform-40ms",
+      "repeat": 3,
+      "elapsedMs": 178.1,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "uniform-40ms",
+      "repeat": 3,
+      "elapsedMs": 374.2,
+      "peak": 4,
+      "issuedBeforeFirst": 4,
+      "requests": 32
+    },
+    {
+      "version": "2.2.6",
+      "scenario": "first-range-500ms",
+      "repeat": 3,
+      "elapsedMs": 643.2,
+      "peak": 8,
+      "issuedBeforeFirst": 8,
+      "requests": 32
+    },
+    {
+      "version": "2.3.0",
+      "scenario": "first-range-500ms",
+      "repeat": 3,
+      "elapsedMs": 511.2,
+      "peak": 4,
+      "issuedBeforeFirst": 32,
+      "requests": 32
+    }
+  ],
+  "resume": {
+    "completedBeforeStop": 16,
+    "totalRanges": 32,
+    "rangesRequestedAfterRestart": 16,
+    "reused": 16
+  },
+  "ui": [
+    {
+      "version": "2.2.6",
+      "repeat": 1,
+      "firstMs": 3014.3,
+      "apiCalls": 100,
+      "cardNodes": 2400
+    },
+    {
+      "version": "2.3.0",
+      "repeat": 1,
+      "firstMs": 51.1,
+      "apiCalls": 1,
+      "cardNodes": 11
+    },
+    {
+      "version": "2.3.0",
+      "repeat": 2,
+      "firstMs": 64.9,
+      "apiCalls": 1,
+      "cardNodes": 11
+    },
+    {
+      "version": "2.2.6",
+      "repeat": 2,
+      "firstMs": 2976.9,
+      "apiCalls": 100,
+      "cardNodes": 2400
+    },
+    {
+      "version": "2.2.6",
+      "repeat": 3,
+      "firstMs": 2978.2,
+      "apiCalls": 100,
+      "cardNodes": 2400
+    },
+    {
+      "version": "2.3.0",
+      "repeat": 3,
+      "firstMs": 49.3,
+      "apiCalls": 1,
+      "cardNodes": 11
+    }
+  ]
+}

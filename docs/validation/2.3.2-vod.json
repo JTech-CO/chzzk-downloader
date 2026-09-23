@@ -1,0 +1,143 @@
+{
+  "checkedAt": "2026-09-20T06:54:49.450Z",
+  "channel": "72a070a5c8437b0c3c196880a054ae48",
+  "baseline": "2.3.1",
+  "current": "2.3.2",
+  "results": [
+    {
+      "videoNo": 15282539,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8180000,
+        "accepted": true
+      },
+      "sample": {
+        "httpStatus": 206,
+        "bytes": 65536,
+        "totalBytes": 5929571580,
+        "contentRangeValid": true,
+        "startsWithMp4": true
+      }
+    },
+    {
+      "videoNo": 15268835,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8191000,
+        "accepted": true
+      },
+      "sample": {
+        "httpStatus": 206,
+        "bytes": 65536,
+        "totalBytes": 10778082291,
+        "contentRangeValid": true,
+        "startsWithMp4": true
+      }
+    },
+    {
+      "videoNo": 15252078,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8175000,
+        "accepted": true
+      }
+    },
+    {
+      "videoNo": 15249377,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8305000,
+        "accepted": true
+      }
+    },
+    {
+      "videoNo": 15219090,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8197000,
+        "accepted": true
+      }
+    },
+    {
+      "videoNo": 15203648,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8187000,
+        "accepted": true
+      }
+    },
+    {
+      "videoNo": 15188163,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8177000,
+        "accepted": true
+      }
+    },
+    {
+      "videoNo": 15171917,
+      "hasInKey": true,
+      "old": {
+        "selectedPreview": true,
+        "host": "a01-g-naver-vod.akamaized.net",
+        "rejected": true
+      },
+      "current": {
+        "type": "mp4",
+        "host": "b01-kr-naver-vod.pstatic.net",
+        "bandwidth": 8183000,
+        "accepted": true
+      }
+    }
+  ],
+  "scope": "Public live API metadata and two 64 KiB Range samples; no complete production VOD download or speed measurement."
+}

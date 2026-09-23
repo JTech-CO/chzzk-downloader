@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic fixture: progressive MP4, muxed segments and optional audio coexist. -->
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" mediaPresentationDuration="PT4S">
+  <Period>
+    <AdaptationSet mimeType="video/mp4">
+      <Representation id="PD_1080P" bandwidth="8180000" width="1920" height="1080" codecs="avc1.64002a,mp4a.40.2">
+        <BaseURL>https://fixture.pstatic.net/full.mp4?token=fixture</BaseURL>
+      </Representation>
+      <Representation id="PD_720P" bandwidth="3192000" width="1280" height="720" codecs="avc1.4d4020,mp4a.40.2">
+        <BaseURL>https://fixture.pstatic.net/low.mp4?token=fixture</BaseURL>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet mimeType="video/mp2t">
+      <Representation id="HLS_1080P" bandwidth="8180000" codecs="avc1.64002a,mp4a.40.2">
+        <BaseURL>https://fixture.pstatic.net/segments/</BaseURL>
+        <SegmentTemplate timescale="1" initialization="init.mp4" media="$Number$.m4s" duration="2"/>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet mimeType="video/mp4" codecs="avc1.64002a">
+      <Representation id="video-only" bandwidth="10000000">
+        <BaseURL>https://fixture.pstatic.net/silent.mp4</BaseURL>
+      </Representation>
+    </AdaptationSet>
+    <AdaptationSet mimeType="audio/mp4">
+      <Representation id="audio-only" bandwidth="128000" codecs="mp4a.40.2">
+        <BaseURL>https://fixture.pstatic.net/audio/</BaseURL>
+        <SegmentList><Initialization sourceURL="init.mp4"/><SegmentURL media="1.m4s"/></SegmentList>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>

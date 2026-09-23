@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Chzzk Downloader",
+  "version": "2.2.6",
+  "description": "치지직(Chzzk) 스트리머·편집자를 위한 클립/VOD 로컬 백업 도구",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "declarativeNetRequest",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://chzzk.naver.com/*",
+    "https://*.naver.com/*",
+    "https://*.pstatic.net/*",
+    "https://light-slit.akamaized.net/*",
+    "https://ex-nlive-slitvod-streaming.navercdn.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chzzk.naver.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
