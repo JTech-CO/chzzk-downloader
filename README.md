@@ -12,7 +12,7 @@
 
 수정 내용은 [버그 리포트](docs/bug-report.md)에 있으며, 개인정보 처리방침은 [이 문서](<https://jtech-co.github.io/chzzk-downloader/docs/privacy-policy.html>)에 있습니다.
 
-## 바로 설치하기
+## 바로 설치하기 > [확장프로그램 스토어에서 설치하기](<https://chromewebstore.google.com/detail/pglcbbcphnbalglbhjngigjciijhgpih?utm_source=item-share-cb>)
 
 1. Chrome의 확장 프로그램 관리 화면(`chrome://extensions`)에서 **개발자 모드**를 켭니다.
 2. **압축 해제된 확장 프로그램을 로드합니다**를 누르고 이 저장소의 **[dist](dist/)** 폴더를 선택합니다.
